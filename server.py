@@ -819,4 +819,8 @@ async def startup():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    # Get the port from the environment, default to 8080 if not found
+    port = int(os.environ.get("PORT", 8080))
+    # Remove reload=True for production deployment
+    uvicorn.run("server:app", host="0.0.0.0", port=port)
