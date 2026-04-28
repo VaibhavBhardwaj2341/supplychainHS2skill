@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Smart Supply Chain Supreme v3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0d1117;--s:#161b22;--b:#30363d;--green:#238636;--blue:#1f6feb;--yellow:#d29922;--red:#da3633;--text:#c9d1d9;--muted:#8b949e;--r:8px;}
+:root.light-mode{--bg:#f6f8fa;--s:#ffffff;--b:#d0d7de;--text:#24292f;--muted:#57606a;--green:#1a7f37;--blue:#0969da;--yellow:#bf8700;--red:#cf222e;}
+.light-mode .cas-card, .light-mode .tl-select, .light-mode .ti, .light-mode .ckpi, .light-mode .route-result, .light-mode .kafka-bar { background: var(--bg) !important; color: var(--text); }
+.light-mode .leaflet-container { background: var(--bg) !important; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+header{background:var(--s);border-bottom:1px solid var(--b);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo h1{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;}
+.logo span{font-size:10px;color:var(--muted);}
+.hstats{display:flex;gap:14px;flex-shrink:0;}
+.hs{text-align:center;min-width:50px;}
+.hs .v{font-size:17px;font-weight:700;color:#fff;line-height:1.1;}
+.hs .l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.conn{display:flex;align-items:center;gap:5px;font-size:10px;white-space:nowrap;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--red);}
+.dot.live{background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.main{display:grid;grid-template-columns:240px 1fr 295px;flex:1;overflow:hidden;}
+/* Sidebar */
+.sb{background:var(--s);border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden;}
+.sb-hd{padding:8px 12px;border-bottom:1px solid var(--b);font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;display:flex;justify-content:space-between;align-items:center;}
+.vlist{overflow-y:auto;flex:1;}
+.vc{padding:8px 10px;border-bottom:1px solid var(--b);cursor:pointer;transition:background .12s;}
+.vc:hover{background:#1c2128;}
+.vc.sel{background:#1c2940;border-left:3px solid var(--blue);}
+.vc.rerouted{border-left:3px solid var(--green);}
+.vc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.vid{font-weight:600;font-size:11px;color:#fff;}
+.badge{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;text-transform:uppercase;}
+.on-time{background:#1a3a22;color:#56d364;}.delayed{background:#3d2b00;color:#d29922;}
+.at-risk{background:#3d1212;color:#f85149;}.delivered{background:#1c2128;color:var(--muted);}
+.reroute-badge{font-size:8px;padding:1px 4px;border-radius:3px;background:#1a3a22;color:#56d364;margin-left:3px;}
+.vc-r{font-size:10px;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.trend-arrow{font-size:11px;margin-left:3px;}
+.ACCELERATING{color:#f85149;}.DECLINING{color:#56d364;}.STABLE{color:var(--muted);}
+.vc-bars{display:flex;flex-direction:column;gap:2px;}
+.mini-bar-row{display:flex;align-items:center;gap:4px;}
+.mini-bar{flex:1;height:2px;background:var(--b);border-radius:2px;}
+.mini-fill{height:100%;border-radius:2px;transition:width .5s;}
+.mini-val{font-size:9px;color:var(--muted);width:28px;text-align:right;}
+/* Map */
+#map{width:100%;height:100%;}
+.gm-style-iw{background:var(--s)!important;color:var(--text)!important;border:1px solid var(--b)!important;border-radius:var(--r)!important;padding:6px!important;font-family:inherit!important;font-size:11px!important;}
+.gm-style-iw-d{overflow:auto!important;}
+.gm-ui-hover-effect{display:none!important;}
+.map-wrap{position:relative;}
+/* Map overlays */
+.map-controls{position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:4px;}
+.map-btn{padding:5px 10px;background:var(--s);border:1px solid var(--b);border-radius:var(--r);color:var(--text);font-size:10px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.map-btn:hover,.map-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+/* Right panel */
+.rp{background:var(--s);border-left:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden;}
+.tabs{display:flex;border-bottom:1px solid var(--b);flex-shrink:0;}
+.tab{flex:1;padding:7px 2px;text-align:center;font-size:10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;position:relative;}
+.tab.active{color:#fff;border-bottom-color:var(--blue);}
+.tab-badge{position:absolute;top:3px;right:2px;background:var(--red);color:#fff;font-size:8px;padding:0 3px;border-radius:6px;min-width:14px;text-align:center;}
+.tab-content{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tab-content.active{display:flex;}
+/* Alerts tab */
+.alert-list{overflow-y:auto;flex:1;}
+.ai{padding:8px 10px;border-bottom:1px solid var(--b);}
+.ai-top{display:flex;justify-content:space-between;margin-bottom:3px;}
+.sev-badge{font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;}
+.CRITICAL{background:#4b1018;color:#f85149;}.HIGH{background:#3d1e00;color:#ff9e2c;}
+.MEDIUM{background:#3d3000;color:#d29922;}.LOW{background:#1c2940;color:#58a6ff;}
+.CASCADE{background:#2d1a4b;color:#c084fc;}
+.ai-veh{font-size:11px;font-weight:600;color:#fff;margin-bottom:2px;}
+.ai-msg{font-size:10px;color:var(--muted);margin-bottom:3px;}
+.ai-rec{font-size:10px;color:#58a6ff;font-style:italic;}
+.ai-ack{font-size:9px;padding:2px 6px;background:var(--b);border:none;color:var(--text);border-radius:3px;cursor:pointer;margin-top:3px;}
+.ai-ack:hover{background:var(--green);color:#fff;}
+/* Cascade tab */
+.cascade-panel{overflow-y:auto;flex:1;padding:6px;}
+.no-cascade{padding:20px;text-align:center;color:var(--muted);font-size:12px;}
+.cas-card{background:#0d1117;border-radius:var(--r);padding:10px;margin-bottom:8px;border:1px solid var(--b);border-left:3px solid #c084fc;}
+.cas-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.cas-hub{font-size:13px;font-weight:700;color:#fff;}
+.cas-score{font-size:11px;color:#c084fc;font-weight:600;}
+.cas-trigger{font-size:10px;color:var(--muted);margin-bottom:5px;}
+.cas-vehicles{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;}
+.cas-vid{font-size:9px;padding:1px 5px;background:#2d1a4b;color:#c084fc;border-radius:3px;}
+.cas-ttc{font-size:10px;color:#ff9e2c;margin-bottom:5px;}
+.cas-btns{display:flex;gap:6px;}
+.cas-btn{flex:1;padding:5px;border-radius:var(--r);border:none;font-size:10px;font-weight:600;cursor:pointer;}
+.accept-btn{background:var(--green);color:#fff;}
+.resolve-btn{background:var(--b);color:var(--text);}
+.cas-btn:hover{opacity:.85;}
+.cascade-score-bar{height:4px;background:var(--b);border-radius:2px;margin-bottom:6px;}
+.cascade-score-fill{height:100%;border-radius:2px;background:#c084fc;}
+/* Risk timeline tab */
+.timeline-panel{overflow-y:auto;flex:1;padding:8px 10px;}
+.tl-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.tl-select{width:100%;background:#0d1117;color:var(--text);border:1px solid var(--b);border-radius:var(--r);padding:5px 8px;font-size:11px;outline:none;margin-bottom:8px;}
+.tl-chart-wrap{position:relative;height:140px;}
+.trend-info{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.ti{background:#0d1117;border-radius:var(--r);padding:6px;text-align:center;}
+.ti .tv{font-size:14px;font-weight:700;}
+.ti .tl2{font-size:9px;color:var(--muted);}
+/* Carbon */
+.carbon-panel{padding:10px;overflow-y:auto;flex:1;}
+.carbon-kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.ckpi{background:#0d1117;border-radius:var(--r);padding:8px;text-align:center;}
+.ckpi .cv{font-size:16px;font-weight:700;color:#56d364;}
+.ckpi .cl{font-size:9px;color:var(--muted);text-transform:uppercase;}
+.co2-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.co2-label{font-size:10px;color:var(--muted);width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.co2-bar{flex:1;height:5px;background:var(--b);border-radius:3px;}
+.co2-fill{height:100%;border-radius:3px;transition:width .6s;}
+.co2-val{font-size:9px;color:var(--muted);width:40px;text-align:right;}
+/* Decisions */
+.dec-list{overflow-y:auto;flex:1;padding:4px 0;}
+.di{padding:8px 10px;border-bottom:1px solid var(--b);}
+.di-top{display:flex;justify-content:space-between;margin-bottom:3px;}
+.di-veh{font-size:11px;font-weight:600;color:#fff;}
+.di-pri{font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;}
+.di-act{font-size:10px;color:#58a6ff;margin-bottom:2px;}
+.di-reason{font-size:10px;color:var(--muted);}
+.auto-exec-badge{font-size:8px;padding:1px 4px;background:#1a3a22;color:#56d364;border-radius:3px;margin-left:4px;}
+/* Detail */
+.detail{border-top:1px solid var(--b);padding:10px;flex-shrink:0;}
+.det-title{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.di-item .dk{font-size:9px;color:var(--muted);}
+.di-item .dv{font-size:11px;color:#fff;font-weight:500;}
+.opt-btn{width:100%;padding:7px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;font-size:11px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.opt-btn:hover{opacity:.85;}
+.route-result{padding:8px;background:#0d1117;border-radius:var(--r);margin-top:6px;font-size:10px;}
+.rpath{display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-bottom:5px;}
+.rc{background:#1c2940;color:#58a6ff;padding:1px 5px;border-radius:3px;font-size:9px;}
+.rarr{color:var(--muted);font-size:9px;}
+/* Toast notifications */
+#toast-container{position:fixed;top:54px;right:10px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.toast{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px;min-width:240px;max-width:320px;animation:slideIn .3s ease;pointer-events:all;border-left:3px solid var(--green);}
+.toast.cascade{border-left-color:#c084fc;}
+.toast.critical{border-left-color:var(--red);}
+.toast-title{font-size:11px;font-weight:700;color:#fff;margin-bottom:3px;}
+.toast-body{font-size:10px;color:var(--muted);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideOut{from{opacity:1}to{opacity:0;transform:translateX(20px)}}
+/* Kafka bar */
+.kafka-bar{background:#0d1117;border-top:1px solid var(--b);padding:5px 12px;display:flex;gap:14px;flex-shrink:0;}
+.kt{font-size:9px;color:var(--muted);}
+.kt span{color:var(--text);}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px;}
+
+/* Animated route pulse */
+@keyframes moveDash{to{stroke-dashoffset:-20}}
+/* Weather overlay markers */
+.weather-overlay-icon {
+  pointer-events: auto !important;
+}
+.wx-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: all;
+  transition: transform 0.25s ease, filter 0.25s ease;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.45));
+}
+.wx-marker:hover {
+  transform: scale(1.18) translateY(-3px);
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
+  z-index: 9000 !important;
+}
+.wx-emoji {
+  font-size: 26px;
+  line-height: 1;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  animation: wxFloat 3s ease-in-out infinite;
+}
+.wx-emoji.severe {
+  font-size: 32px;
+  animation: wxPulse 1.2s ease-in-out infinite;
+}
+.wx-glass {
+  background: rgba(13,17,23,0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 3px 8px;
+  text-align: center;
+  min-width: 56px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.light-mode .wx-glass {
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.wx-cond {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #c9d1d9;
+  white-space: nowrap;
+}
+.light-mode .wx-cond { color: #24292f; }
+.wx-sev-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  margin-top: 2px;
+  overflow: hidden;
+}
+.wx-sev-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s ease;
+}
+@keyframes wxFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes wxPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.85; }
+}
+/* Weather tooltip */
+.wx-tip {
+  background: rgba(13,17,23,0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-size: 11px !important;
+  color: #c9d1d9 !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  max-width: 220px !important;
+}
+.wx-tip::before { border-top-color: rgba(13,17,23,0.92) !important; }
+.light-mode .wx-tip {
+  background: rgba(255,255,255,0.95) !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  color: #24292f !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+}
+/* Vehicle warning pop-out badges */
+.vwarn-icon { pointer-events: auto !important; }
+.vwarn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  pointer-events: all;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+}
+.vwarn-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(13,17,23,0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 6px;
+  padding: 2px 7px 2px 4px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  animation: vwarnSlideIn 0.35s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.vwarn-badge:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  z-index: 9500 !important;
+}
+.light-mode .vwarn-badge {
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+}
+.vwarn-badge.critical {
+  border-left: 2px solid #f85149;
+  animation: vwarnSlideIn 0.35s ease, vwarnPulse 1.5s ease-in-out infinite;
+}
+.vwarn-badge.high { border-left: 2px solid #ff9e2c; }
+.vwarn-badge.medium { border-left: 2px solid #d29922; }
+.vwarn-badge.info { border-left: 2px solid #58a6ff; }
+.vwarn-badge.ok { border-left: 2px solid #56d364; }
+.vwarn-emoji { font-size: 13px; line-height: 1; flex-shrink: 0; }
+.vwarn-text {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #c9d1d9;
+  text-transform: uppercase;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.light-mode .vwarn-text { color: #24292f; }
+@keyframes vwarnSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes vwarnPulse {
+  0%, 100% { box-shadow: 0 2px 10px rgba(248,81,73,0.2); }
+  50% { box-shadow: 0 2px 18px rgba(248,81,73,0.45); }
+}
+/* F1: SLA */
+.sla-panel{overflow-y:auto;flex:1;padding:6px;}
+.sla-item{padding:8px 10px;border-bottom:1px solid var(--b);}
+.sla-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.sla-vid{font-size:11px;font-weight:600;color:#fff;}
+.sla-badge{font-size:8px;padding:2px 6px;border-radius:3px;font-weight:700;text-transform:uppercase;}
+.sla-safe{background:#1a3a22;color:#56d364;}.sla-watch{background:#3d3000;color:#d29922;}
+.sla-breach{background:#4b1018;color:#f85149;}.sla-breached{background:#f85149;color:#fff;}
+.sla-info{font-size:10px;color:var(--muted);}
+.sla-bar{height:3px;background:var(--b);border-radius:2px;margin-top:3px;}
+.sla-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+/* F3: Driver */
+.driver-panel{overflow-y:auto;flex:1;padding:6px;}
+.driver-item{padding:8px 10px;border-bottom:1px solid var(--b);cursor:pointer;transition:background .12s;}
+.driver-item:hover{background:#1c2128;}
+.driver-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.driver-name{font-size:11px;font-weight:600;color:#fff;}
+.driver-score-badge{font-size:13px;font-weight:700;min-width:35px;text-align:center;}
+.driver-metrics{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+.driver-metric{font-size:9px;color:var(--muted);}.driver-metric span{color:var(--text);font-weight:500;}
+.driver-rank{font-size:10px;color:var(--muted);margin-right:6px;}
+/* Fatigue / Driving Hours */
+.fatigue-section{margin-top:4px;padding-top:4px;border-top:1px dashed var(--b);}
+.fatigue-row{display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+.fatigue-label{font-size:8px;color:var(--muted);width:42px;flex-shrink:0;text-transform:uppercase;}
+.fatigue-bar{flex:1;height:6px;background:var(--b);border-radius:3px;overflow:hidden;position:relative;}
+.fatigue-fill{height:100%;border-radius:3px;transition:width .5s,background .3s;}
+.fatigue-val{font-size:8px;color:var(--text);width:40px;text-align:right;font-weight:500;}
+.fatigue-badge{font-size:7px;padding:1px 4px;border-radius:2px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+.fatigue-ok{background:#1a3a22;color:#56d364;}
+.fatigue-caution{background:#3d3000;color:#d29922;}
+.fatigue-danger{background:#4b1018;color:#f85149;}
+.fatigue-violation{background:#f85149;color:#fff;animation:vwarnPulse 1.5s infinite;}
+/* F5: Explainability */
+.explain-section{margin-top:8px;padding-top:8px;border-top:1px solid var(--b);}
+.explain-title{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.explain-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.explain-label{font-size:9px;color:var(--muted);width:80px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.explain-bar{flex:1;height:6px;background:var(--b);border-radius:3px;overflow:hidden;}
+.explain-fill{height:100%;border-radius:3px;transition:width .4s;}
+.explain-val{font-size:9px;color:var(--text);width:35px;text-align:right;}
+/* F6: Replay */
+.replay-panel{overflow-y:auto;flex:1;padding:8px 10px;}
+.replay-controls{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.replay-btn{padding:4px 10px;background:var(--b);border:1px solid var(--b);border-radius:var(--r);color:var(--text);font-size:10px;cursor:pointer;transition:all .15s;}
+.replay-btn:hover,.replay-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.replay-slider{flex:1;min-width:80px;accent-color:var(--blue);}
+.replay-time{font-size:10px;color:var(--muted);min-width:60px;text-align:center;}
+.replay-snap{padding:6px;background:#0d1117;border-radius:var(--r);margin-top:6px;font-size:10px;border:1px solid var(--b);}
+/* F8: ROI */
+.roi-panel{overflow-y:auto;flex:1;padding:8px 10px;}
+.roi-big{text-align:center;padding:16px;background:linear-gradient(135deg,#0d2818,#0d1117);border-radius:var(--r);margin-bottom:10px;border:1px solid #238636;}
+.roi-big .roi-amount{font-size:28px;font-weight:800;color:#56d364;line-height:1.2;}
+.roi-big .roi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.roi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.roi-card{background:#0d1117;border-radius:var(--r);padding:8px;text-align:center;border:1px solid var(--b);}
+.roi-card .rv{font-size:14px;font-weight:700;}.roi-card .rl{font-size:9px;color:var(--muted);text-transform:uppercase;}
+/* F9: Feedback */
+.feedback-card{background:#0d1117;border-radius:var(--r);padding:10px;margin:8px 10px;border:1px solid var(--b);}
+.feedback-title{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.feedback-stat{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;}
+.feedback-stat .fk{color:var(--muted);}.feedback-stat .fv{color:#fff;font-weight:600;}
+/* F4: Dispatch */
+.dispatch-btns{display:flex;gap:3px;margin-top:3px;}
+.dispatch-btn{font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--b);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+.dispatch-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff;}
+.dispatch-btn.sent{background:#1a3a22;border-color:#238636;color:#56d364;cursor:default;}
+/* Modals */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--s);border-radius:var(--r);padding:20px;border:1px solid var(--b);box-shadow:0 10px 30px rgba(0,0,0,0.5);position:relative;max-height:85vh;overflow-y:auto;}
+.modal-close{position:absolute;top:10px;right:15px;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;}
+.modal-title{font-size:16px;font-weight:bold;margin-bottom:15px;}
+/* F2: What-If */
+.whatif-box{width:90%;max-width:800px;}
+.whatif-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.whatif-group{display:flex;flex-direction:column;gap:4px;}
+.whatif-group label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.whatif-group select,.whatif-group input{background:#0d1117;color:var(--text);border:1px solid var(--b);border-radius:var(--r);padding:6px 10px;font-size:11px;outline:none;}
+.whatif-run{width:100%;padding:10px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:16px;}
+.whatif-run:hover{opacity:.85;}
+.whatif-results{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.whatif-card{background:#0d1117;border-radius:var(--r);padding:12px;border:1px solid var(--b);}
+.whatif-card h4{font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.whatif-stat{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;}
+.whatif-stat .wk{color:var(--muted);}.whatif-stat .wv{font-weight:600;}
+.whatif-diff{font-size:10px;font-weight:600;margin-left:6px;}
+.whatif-diff.better{color:#56d364;}.whatif-diff.worse{color:#f85149;}
+/* F10: Customer */
+.customer-box{width:90%;max-width:500px;}
+.customer-card{text-align:center;padding:20px 0;}
+.customer-status{font-size:32px;margin-bottom:8px;}
+.customer-id{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;}
+.customer-route{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.customer-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;margin-bottom:16px;}
+.customer-field .cf-label{font-size:9px;color:var(--muted);text-transform:uppercase;}
+.customer-field .cf-value{font-size:13px;color:#fff;font-weight:500;}
+.customer-delay{padding:10px;border-radius:var(--r);text-align:center;font-size:12px;margin-bottom:12px;}
+.customer-delay.ok{background:#1a3a22;color:#56d364;}
+.customer-delay.warn{background:#3d3000;color:#d29922;}
+.customer-delay.bad{background:#4b1018;color:#f85149;}
+/* F7: Settings */
+.settings-box{width:90%;max-width:400px;}
+.settings-group{margin-bottom:12px;}
+.settings-group label{font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px;}
+.settings-group input{width:100%;background:#0d1117;color:var(--text);border:1px solid var(--b);border-radius:var(--r);padding:8px;font-size:11px;outline:none;}
+.settings-save{width:100%;padding:10px;background:var(--green);border:none;border-radius:var(--r);color:#fff;font-size:12px;font-weight:600;cursor:pointer;}
+.settings-note{font-size:9px;color:var(--muted);margin-top:4px;}
+.hdr-btn{padding:4px 8px;background:var(--b);border:1px solid var(--b);border-radius:var(--r);color:var(--text);font-size:10px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.hdr-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff;}
+.roi-header{font-size:11px;font-weight:700;color:#56d364;cursor:pointer;padding:2px 8px;background:#1a3a22;border-radius:var(--r);white-space:nowrap;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg width="26" height="26" viewBox="0 0 26 26"><rect width="26" height="26" rx="6" fill="#1f6feb"/><path d="M5 17l4-7 3.5 5 2.5-3.5 4.5 5.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="20" cy="6" r="2.5" fill="#56d364"/></svg>
+    <div><h1>Smart Supply Chain Supreme v3</h1><span>Cascade Detection · Auto-Reroute · Risk Projection</span></div>
+  </div>
+  <div class="hstats">
+    <button onclick="toggleTheme()" style="background:var(--b);border:none;color:var(--text);padding:0 10px;border-radius:var(--r);cursor:pointer;font-weight:600;margin-right:10px;" title="Toggle Theme">🌓</button>
+    <div class="hs"><div class="v" id="h-total">—</div><div class="l">Vehicles</div></div>
+    <div class="hs"><div class="v" style="color:#56d364" id="h-ontime">—</div><div class="l">On Time</div></div>
+    <div class="hs"><div class="v" style="color:#d29922" id="h-delayed">—</div><div class="l">Delayed</div></div>
+    <div class="hs"><div class="v" style="color:#f85149" id="h-risk">—</div><div class="l">At Risk</div></div>
+    <div class="hs"><div class="v" style="color:#c084fc" id="h-cascades">0</div><div class="l">Cascades</div></div>
+    <div class="hs"><div class="v" style="color:#56d364" id="h-rerouted">0</div><div class="l">Auto-Rerouted</div></div>
+    <div class="hs"><div class="v" style="color:#56d364" id="h-co2">0</div><div class="l">CO₂ Saved</div></div>
+    <div class="hs"><div class="v" style="color:#f85149" id="h-alerts">0</div><div class="l">Alerts</div></div>
+    <div class="roi-header" id="h-roi" onclick="showTab('roi',document.querySelector('[data-tab=roi]'))" title="Today's ROI Savings">💰 ₹0</div>
+  </div>
+  <div style="display:flex;gap:4px;flex-shrink:0;">
+    <button class="hdr-btn" onclick="openWhatIf()">🔮 What-If</button>
+    <button class="hdr-btn" onclick="openSettings()">⚙️</button>
+  </div>
+  <div class="conn"><div class="dot" id="cdot"></div><span id="clabel">Connecting…</span></div>
+</header>
+
+<div id="toast-container"></div>
+
+<div class="main">
+  <div class="sb">
+    <div class="sb-hd"><span>Fleet</span><span id="vcnt" style="color:var(--text)">0</span></div>
+    <div class="vlist" id="vlist"></div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-controls">
+      <button class="map-btn active" id="btn-heatmap" onclick="toggleHeatmap(this)">🌡 Hub Risk</button>
+      <button class="map-btn" id="btn-traffic" onclick="toggleTrafficOverlay(this)">🚦 Traffic</button>
+      <button class="map-btn" id="btn-cascade-lines" onclick="toggleCascadeLines(this)">🔗 Cascades</button>
+      <button class="map-btn" id="btn-routes" onclick="toggleRoutes(this)">🛣 Routes</button>
+      <button class="map-btn active" id="btn-weather" onclick="toggleWeatherOverlay(this)">🌤️ Weather</button>
+      <button class="map-btn active" id="btn-warnings" onclick="toggleWarningOverlay(this)">⚠️ Warnings</button>
+    </div>
+  </div>
+
+  <div class="rp">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('alerts',this)">⚠ Alerts<span class="tab-badge" id="tb-alerts">0</span></div>
+      <div class="tab" onclick="showTab('cascades',this)">🔗 Cascade<span class="tab-badge" id="tb-cascades" style="background:#c084fc">0</span></div>
+      <div class="tab" onclick="showTab('timeline',this)">📈 Risk</div>
+      <div class="tab" onclick="showTab('carbon',this)">🌱 CO₂</div>
+      <div class="tab" onclick="showTab('decisions',this)">🧠 AI</div>
+      <div class="tab" data-tab="sla" onclick="showTab('sla',this)">📦 SLA</div>
+      <div class="tab" data-tab="drivers" onclick="showTab('drivers',this)">👤 Drivers</div>
+      <div class="tab" data-tab="roi" onclick="showTab('roi',this)">💰 ROI</div>
+      <div class="tab" data-tab="replay" onclick="showTab('replay',this)">⏪ Replay</div>
+    </div>
+
+    <div class="tab-content active" id="tab-alerts">
+      <div class="alert-list" id="alert-list"></div>
+    </div>
+
+    <div class="tab-content" id="tab-cascades">
+      <div class="cascade-panel" id="cascade-panel"></div>
+    </div>
+
+    <div class="tab-content" id="tab-timeline">
+      <div class="timeline-panel">
+        <div class="tl-title">Risk Trajectory</div>
+        <select class="tl-select" id="tl-vehicle" onchange="updateTimeline()">
+          <option value="">— Select vehicle —</option>
+        </select>
+        <button onclick="openGraphModal()" class="opt-btn" style="margin:8px 0;background:var(--blue)">📈 Open Large Graph</button>
+        <div class="trend-info" id="trend-info"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-carbon">
+      <div class="carbon-panel">
+        <div class="carbon-kpi">
+          <div class="ckpi"><div class="cv" id="c-saved">0</div><div class="cl">CO₂ Saved kg</div></div>
+          <div class="ckpi"><div class="cv" id="c-trees">0</div><div class="cl">🌱 Trees eq.</div></div>
+          <div class="ckpi"><div class="cv" id="c-total" style="color:#d29922">0</div><div class="cl">Total emitted</div></div>
+          <div class="ckpi"><div class="cv" id="c-eco" style="color:#58a6ff">—</div><div class="cl">Best eco score</div></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">CO₂ by vehicle (kg emitted)</div>
+        <div id="co2-bars"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-decisions">
+      <div class="dec-list" id="dec-list"></div>
+      <div class="feedback-card" id="feedback-panel">
+        <div class="feedback-title">🔁 Model Performance (F9)</div>
+        <div id="feedback-stats">Waiting for data…</div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-sla">
+      <div class="sla-panel" id="sla-panel"><div style="padding:20px;text-align:center;color:var(--muted)">Loading SLA data…</div></div>
+    </div>
+
+    <div class="tab-content" id="tab-drivers">
+      <div class="driver-panel" id="driver-panel"><div style="padding:20px;text-align:center;color:var(--muted)">Loading driver scores…</div></div>
+    </div>
+
+    <div class="tab-content" id="tab-roi">
+      <div class="roi-panel" id="roi-panel"><div style="padding:20px;text-align:center;color:var(--muted)">Calculating ROI…</div></div>
+    </div>
+
+    <div class="tab-content" id="tab-replay">
+      <div class="replay-panel">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Historical Replay & Post-Mortem (F6)</div>
+        <div class="replay-controls">
+          <button class="replay-btn" id="replay-play" onclick="toggleReplay()">▶ Play</button>
+          <button class="replay-btn" onclick="stepReplay(-1)">⏮</button>
+          <button class="replay-btn" onclick="stepReplay(1)">⏭</button>
+          <input type="range" class="replay-slider" id="replay-slider" min="0" max="0" value="0" oninput="seekReplay(this.value)">
+          <span class="replay-time" id="replay-time">0 / 0</span>
+          <select style="background:#0d1117;color:var(--text);border:1px solid var(--b);border-radius:var(--r);padding:3px 6px;font-size:10px;outline:none;" id="replay-speed" onchange="setReplaySpeed(this.value)">
+            <option value="1">1x</option><option value="2">2x</option><option value="5" selected>5x</option><option value="10">10x</option>
+          </select>
+        </div>
+        <div id="replay-info" style="font-size:10px;color:var(--muted);margin-bottom:8px;">📼 Buffering snapshots… Live data is recorded every cycle.</div>
+        <div id="replay-snapshot"></div>
+      </div>
+    </div>
+
+    <div class="detail" id="detail" style="display:none">
+      <div class="det-title" id="det-title">Vehicle</div>
+      <div class="det-grid" id="det-grid"></div>
+      <button class="opt-btn" id="opt-btn">🔄 Optimize Route</button>
+      <div class="route-result" id="route-result" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div id="graph-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+   <div style="background:var(--s);width:90%;max-width:1000px;height:70vh;border-radius:var(--r);padding:20px;border:1px solid var(--b);display:flex;flex-direction:column;position:relative;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+      <button onclick="closeGraphModal()" style="position:absolute;top:10px;right:15px;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;">&times;</button>
+      <div style="font-size:16px;font-weight:bold;margin-bottom:15px;" id="modal-graph-title">Risk Graph</div>
+      <div style="flex:1;position:relative;width:100%;">
+          <canvas id="timeline-chart"></canvas>
+      </div>
+   </div>
+</div>
+
+<!-- What-If Scenario Simulator (F2) -->
+<div class="modal-overlay" id="whatif-modal">
+  <div class="modal-box whatif-box">
+    <button class="modal-close" onclick="closeWhatIf()">&times;</button>
+    <div class="modal-title">🔮 What-If Scenario Simulator</div>
+    <div class="whatif-controls">
+      <div class="whatif-group">
+        <label>Block Hub</label>
+        <select id="whatif-hub"><option value="">— None —</option></select>
+      </div>
+      <div class="whatif-group">
+        <label>Weather Override</label>
+        <select id="whatif-weather">
+          <option value="">— No change —</option>
+          <option value="Heavy Storm">Heavy Storm (all hubs)</option>
+          <option value="Fog">Dense Fog (all hubs)</option>
+          <option value="Clear">Clear Skies (all hubs)</option>
+        </select>
+      </div>
+      <div class="whatif-group">
+        <label>Extra Vehicles</label>
+        <input type="number" id="whatif-extra" value="0" min="-5" max="10">
+      </div>
+      <div class="whatif-group">
+        <label>Traffic Multiplier</label>
+        <input type="range" id="whatif-traffic" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('whatif-traf-val').textContent=this.value+'x'">
+        <span id="whatif-traf-val" style="font-size:10px;color:var(--text);">1.0x</span>
+      </div>
+    </div>
+    <button class="whatif-run" onclick="runWhatIf()">🚀 Run Scenario</button>
+    <div id="whatif-results"></div>
+  </div>
+</div>
+
+<!-- Customer Tracking Portal (F10) -->
+<div class="modal-overlay" id="customer-modal">
+  <div class="modal-box customer-box">
+    <button class="modal-close" onclick="closeCustomerPortal()">&times;</button>
+    <div class="modal-title">📱 Customer Tracking Portal</div>
+    <div id="customer-content"><div style="padding:20px;text-align:center;color:var(--muted)">Select a vehicle first</div></div>
+  </div>
+</div>
+
+<!-- Settings (F7) -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-box settings-box">
+    <button class="modal-close" onclick="closeSettings()">&times;</button>
+    <div class="modal-title">⚙️ Settings</div>
+    <div class="settings-group">
+      <label>Google Maps API Key</label>
+      <input type="text" id="gmaps-key" placeholder="Enter your Google Maps API key…">
+      <div class="settings-note">Get a key at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:#58a6ff">Google Cloud Console</a> — enables Maps JavaScript API</div>
+      <div id="gmaps-status" style="font-size:11px;color:var(--muted);padding:6px;background:#0d1117;border-radius:var(--r);margin-top:4px;"></div>
+    </div>
+    <div class="settings-group">
+      <label>OpenWeatherMap API Key (F7)</label>
+      <input type="text" id="owm-key" placeholder="Enter your API key for live weather…">
+      <div class="settings-note">Get a free key at openweathermap.org — enables real weather data for all hub cities</div>
+    </div>
+    <div class="settings-group">
+      <label>Weather Data Source</label>
+      <div id="weather-source-status" style="font-size:11px;color:var(--muted);padding:6px;background:#0d1117;border-radius:var(--r);margin-top:4px;">🔴 Simulated — No API key configured</div>
+    </div>
+    <button class="settings-save" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+<div class="kafka-bar">
+  <div class="kt">GPS: <span id="k-gps">—</span></div>
+  <div class="kt">Traffic: <span id="k-traf">—</span></div>
+  <div class="kt">Weather: <span id="k-wx">—</span></div>
+  <div class="kt">Features: <span id="k-feat">—</span></div>
+  <div class="kt">Alerts: <span id="k-alrt">—</span></div>
+  <div class="kt" style="margin-left:auto;color:#c084fc">Cascades: <span id="k-cas">0</span></div>
+  <div class="kt">Auto-rerouted: <span id="k-rerouted" style="color:#56d364">0</span></div>
+  <div class="kt">WS: <span id="ws-ping" style="color:#56d364">Live</span></div>
+</div>
+
+<script>
+const API = `http://${location.host}/api`;
+const WS  = `ws://${location.host}/ws`;
+
+let vehicles={}, selVid=null, trendsData={}, cascadesData=[];
+let map, routeLayer, vMarkers={}, hubCircles={}, heatmapLayer=null;
+let trafficLayer=null, cascadeLineLayer=null, optRouteLayer=null;
+let weatherOverlayLayer=null;
+let warningOverlayLayer=null;
+let showHeatmap=true, showTraffic=false, showCascadeLines=false, showRoutes=true, showWeather=true, showWarnings=true;
+let lastWeatherData={};
+let timelineChart=null;
+let wsConn, reconnTimer;
+let directionsService=null, routeRenderers=[], routeLabelOverlays=[], routeCache={}, optRouteRenderer=null;
+
+function toggleTheme() {
+  document.documentElement.classList.toggle('light-mode');
+  const isLight = document.documentElement.classList.contains('light-mode');
+  setGMapTheme(isLight);
+  if (timelineChart) {
+    const gc = isLight ? '#d0d7de' : '#30363d';
+    const tc = isLight ? '#57606a' : '#8b949e';
+    timelineChart.options.scales.x.grid.color = gc;
+    timelineChart.options.scales.y.grid.color = gc;
+    timelineChart.options.scales.x.ticks.color = tc;
+    timelineChart.options.scales.y.ticks.color = tc;
+    timelineChart.update('none');
+  }
+}
+
+function openGraphModal() {
+  const vid = document.getElementById('tl-vehicle').value;
+  document.getElementById('modal-graph-title').textContent = vid ? `Risk Trajectory - ${vid}` : 'Risk Graph';
+  document.getElementById('graph-modal').style.display = 'flex';
+  if (timelineChart) timelineChart.resize();
+}
+
+function closeGraphModal() {
+  document.getElementById('graph-modal').style.display = 'none';
+}
+
+// ── Map setup ─────────────────────────────────────────────────────────────────
+function initMap(){
+  map=L.map('map',{zoomControl:true}).setView([20,80],5);
+  routeLayer=L.layerGroup().addTo(map);
+  trafficLayer=L.layerGroup();
+  cascadeLineLayer=L.layerGroup();
+  weatherOverlayLayer=L.layerGroup().addTo(map);
+  warningOverlayLayer=L.layerGroup().addTo(map);
+}
+
+function drawRoutes(routes){
+  routeRenderers.forEach(r=>{try{r.setMap(null)}catch(e){}});
+  routeRenderers=[];
+  routeLabelOverlays.forEach(o=>{try{o.setMap(null)}catch(e){}});
+  routeLabelOverlays=[];
+  routeLayer.clearLayers();
+  if(!showRoutes||!routes) return;
+  routes.forEach(r=>{
+    const pts=r.points||[[r.from_lat,r.from_lng],[r.to_lat,r.to_lng]];
+    const q=r.quality||0.8;
+    const col=q>0.88?'#1f6feb':q>0.78?'#238636':'#d29922';
+    L.polyline(pts,{color:col,weight:2.5,opacity:0.5}).addTo(routeLayer);
+    // Add NH label at midpoint of route
+    if(r.nh){
+      const mid=pts[Math.floor(pts.length/2)];
+      const lbl=new HtmlOverlay(mid,
+        `<div style="background:rgba(13,17,23,0.88);backdrop-filter:blur(6px);border:1px solid rgba(88,166,255,0.25);border-radius:4px;padding:2px 7px;font-size:8px;font-weight:700;color:#58a6ff;white-space:nowrap;letter-spacing:.5px;pointer-events:none;">${r.nh}</div>`,
+        [80,16],[40,8],500,false);
+      lbl.setMap(_gmap);
+      routeLabelOverlays.push(lbl);
+    }
+  });
+}
+
+function drawHubs(hubs, hubRiskMap){
+  Object.values(hubCircles).forEach(c=>c.remove());
+  hubs.forEach(h=>{
+    const risk = hubRiskMap?.[h.name]?.risk ?? 0;
+    const col  = risk>0.7?'#f85149':risk>0.45?'#d29922':'#56d364';
+    const r    = showHeatmap ? (6 + risk*14) : 6;
+    const opacity = showHeatmap ? (0.3 + risk*0.5) : 0.5;
+    const m = L.circleMarker([h.lat,h.lng],
+      {radius:r,color:col,fillColor:col,fillOpacity:opacity,weight:1.5})
+      .addTo(map)
+      .bindTooltip(
+        `<b>${h.name}</b><br>Hub Risk: ${(risk*100).toFixed(0)}%<br>Converging: ${hubRiskMap?.[h.name]?.converging??0}`,
+        {direction:'top'});
+    hubCircles[h.name]=m;
+  });
+}
+
+function updateHeatmap(hubRiskMap){
+  if(!hubRiskMap) return;
+  Object.entries(hubRiskMap).forEach(([name,data])=>{
+    const c=hubCircles[name];
+    if(!c) return;
+    const risk=data.risk||0;
+    const col=risk>0.7?'#f85149':risk>0.45?'#d29922':'#56d364';
+    const r=showHeatmap?(6+risk*14):6;
+    const op=showHeatmap?(0.3+risk*0.5):0.5;
+    c.setStyle({color:col,fillColor:col,fillOpacity:op,radius:r});
+  });
+}
+
+function drawTrafficOverlay(heatmap){
+  trafficLayer.clearLayers();
+  if(!showTraffic||!heatmap) return;
+  heatmap.forEach(seg=>{
+    const density=seg.density||0;
+    const col=density>0.7?'#f85149':density>0.5?'#d29922':density>0.3?'#d4a017':'#56d364';
+    const w=1+density*4;
+    const from=getHubLatLng(seg.from), to=getHubLatLng(seg.to);
+    if(from&&to){
+      L.polyline([from,to],{color:col,weight:w,opacity:0.7})
+        .addTo(trafficLayer)
+        .bindTooltip(`${seg.from}→${seg.to}: ${seg.congestion} (${(density*100).toFixed(0)}%)`,{sticky:true});
+    }
+  });
+  trafficLayer.addTo(map);
+}
+
+function drawCascadeLines(cascades){
+  cascadeLineLayer.clearLayers();
+  if(!showCascadeLines||!cascades.length) return;
+  cascades.forEach(cas=>{
+    const hub=cas.epicenter_hub;
+    const hPos=getHubLatLng(hub);
+    if(!hPos) return;
+    // Pulsing ring around epicentre
+    L.circle(hPos,{radius:120000,color:'#c084fc',fillColor:'#c084fc',fillOpacity:0.06,weight:2,dashArray:'6 4'})
+      .addTo(cascadeLineLayer)
+      .bindTooltip(`CASCADE: ${hub}<br>Score: ${(cas.cascade_score*100).toFixed(0)}%`,{direction:'top'});
+    // Lines to affected vehicles
+    (cas.affected_vehicles||[]).forEach(vid=>{
+      const v=vehicles[vid];
+      if(!v) return;
+      L.polyline([[v.lat,v.lng],hPos],{color:'#c084fc',weight:1.5,opacity:0.5,dashArray:'5 3'})
+        .addTo(cascadeLineLayer);
+    });
+  });
+  cascadeLineLayer.addTo(map);
+}
+
+let _hubCache={};
+function getHubLatLng(name){
+  if(_hubCache[name]) return _hubCache[name];
+  return null;
+}
+function cacheHubs(hubs){
+  hubs.forEach(h=>{_hubCache[h.name]=[h.lat,h.lng];});
+}
+
+function vIcon(v){
+  const p=v.disruption_probability||0, a=v.anomaly_score||0;
+  const risk=Math.max(p,a);
+  const col=risk>0.75?'#f85149':risk>0.55?'#d29922':'#56d364';
+  const auto=v.auto_rerouted?'stroke="#56d364" stroke-width="2"':'';
+  const svg=`<svg width="20" height="20" viewBox="0 0 20 20">
+    <circle cx="10" cy="10" r="8" fill="${col}" fill-opacity=".2" stroke="${col}" stroke-width="1.5"/>
+    <circle cx="10" cy="10" r="3.5" fill="${col}" ${auto}/>
+  </svg>`;
+  return L.divIcon({html:svg,iconSize:[20,20],iconAnchor:[10,10],className:''});
+}
+
+function updateVehicleMarkers(vlist){
+  vlist.forEach(v=>{
+    const pos=[v.lat,v.lng];
+    if(vMarkers[v.id]){vMarkers[v.id].setLatLng(pos);vMarkers[v.id].setIcon(vIcon(v));}
+    else{
+      const m=L.marker(pos,{icon:vIcon(v)}).addTo(map).on('click',()=>selectV(v.id));
+      vMarkers[v.id]=m;
+    }
+    vMarkers[v.id].bindTooltip(
+      `<b>${v.id}</b>${v.auto_rerouted?' 🔄 Auto-rerouted':''}<br>${v.route_name}<br>Risk: ${(Math.max(v.disruption_probability||0,v.anomaly_score||0)*100).toFixed(0)}%`,
+      {direction:'top'});
+  });
+  // Draw vehicle warning badges
+  drawWarningOverlay(vlist);
+}
+
+// ── Toggle overlays ───────────────────────────────────────────────────────────
+function toggleHeatmap(btn){
+  showHeatmap=!showHeatmap;
+  btn.classList.toggle('active',showHeatmap);
+  updateHeatmap(lastHubRiskMap);
+}
+function toggleTrafficOverlay(btn){
+  showTraffic=!showTraffic;
+  btn.classList.toggle('active',showTraffic);
+  if(!showTraffic) trafficLayer.remove();
+  else drawTrafficOverlay(lastSegHeatmap);
+}
+function toggleCascadeLines(btn){
+  showCascadeLines=!showCascadeLines;
+  btn.classList.toggle('active',showCascadeLines);
+  if(!showCascadeLines) cascadeLineLayer.remove();
+  else drawCascadeLines(cascadesData);
+}
+function toggleRoutes(btn){
+  showRoutes=!showRoutes;
+  btn.classList.toggle('active',showRoutes);
+  if(!showRoutes){
+    routeLayer.clearLayers();
+    routeRenderers.forEach(r=>r.setMap(null));
+    routeLabelOverlays.forEach(o=>o.setMap(null));
+  } else if(lastRoutes) drawRoutes(lastRoutes);
+}
+function toggleWeatherOverlay(btn){
+  showWeather=!showWeather;
+  btn.classList.toggle('active',showWeather);
+  if(!showWeather) weatherOverlayLayer.clearLayers();
+  else drawWeatherOverlay(lastWeatherData);
+}
+function toggleWarningOverlay(btn){
+  showWarnings=!showWarnings;
+  btn.classList.toggle('active',showWarnings);
+  if(!showWarnings) warningOverlayLayer.clearLayers();
+  else drawWarningOverlay(Object.values(vehicles));
+}
+
+let lastRoutes=null, lastHubRiskMap={}, lastSegHeatmap=[];
+
+// ── Vehicle warning overlay on map ───────────────────────────────────────────
+function getVehicleWarnings(v) {
+  const warnings = [];
+  const iot = v.iot_alerts || [];
+
+  // Engine breakdown / engine issues from IoT
+  for (const alert of iot) {
+    const al = alert.toLowerCase();
+    if (al.includes('engine')) {
+      warnings.push({ emoji: '🔧', text: 'Engine Issue', severity: 'critical', detail: alert });
+    } else if (al.includes('brake')) {
+      warnings.push({ emoji: '🛑', text: 'Brake Alert', severity: 'high', detail: alert });
+    } else if (al.includes('fuel')) {
+      warnings.push({ emoji: '⛽', text: 'Low Fuel', severity: 'high', detail: alert });
+    } else if (al.includes('tire') || al.includes('tyre')) {
+      warnings.push({ emoji: '🛞', text: 'Tire Alert', severity: 'high', detail: alert });
+    } else if (al.includes('coolant') || al.includes('overheat')) {
+      warnings.push({ emoji: '🌡️', text: 'Overheating', severity: 'critical', detail: alert });
+    } else if (al.includes('battery')) {
+      warnings.push({ emoji: '🔋', text: 'Battery Low', severity: 'high', detail: alert });
+    } else {
+      warnings.push({ emoji: '⚙️', text: 'IoT Alert', severity: 'medium', detail: alert });
+    }
+  }
+
+  // Engine temperature critical (even without IoT alert)
+  const engTemp = v.engine_temp_c || 0;
+  if (engTemp > 105 && !warnings.some(w => w.text === 'Overheating')) {
+    warnings.push({ emoji: '🌡️', text: `Engine ${engTemp.toFixed(0)}°C`, severity: 'critical', detail: `Engine temperature dangerously high: ${engTemp.toFixed(0)}°C` });
+  } else if (engTemp > 95 && !warnings.some(w => w.text === 'Overheating')) {
+    warnings.push({ emoji: '🌡️', text: `Engine ${engTemp.toFixed(0)}°C`, severity: 'high', detail: `Engine temperature elevated: ${engTemp.toFixed(0)}°C` });
+  }
+
+  // Low fuel (even without IoT alert)
+  const fuel = v.fuel_level ?? 1;
+  if (fuel < 0.10 && !warnings.some(w => w.text === 'Low Fuel')) {
+    warnings.push({ emoji: '⛽', text: `Fuel ${(fuel*100).toFixed(0)}%`, severity: 'critical', detail: `Critical fuel level: ${(fuel*100).toFixed(0)}%` });
+  } else if (fuel < 0.20 && !warnings.some(w => w.text === 'Low Fuel')) {
+    warnings.push({ emoji: '⛽', text: `Fuel ${(fuel*100).toFixed(0)}%`, severity: 'high', detail: `Low fuel: ${(fuel*100).toFixed(0)}%` });
+  }
+
+  // Brake wear high
+  const brake = v.brake_wear || 0;
+  if (brake > 0.85 && !warnings.some(w => w.text === 'Brake Alert')) {
+    warnings.push({ emoji: '🛑', text: `Brake ${(brake*100).toFixed(0)}%`, severity: 'critical', detail: `Critical brake wear: ${(brake*100).toFixed(0)}%` });
+  } else if (brake > 0.70 && !warnings.some(w => w.text === 'Brake Alert')) {
+    warnings.push({ emoji: '🛑', text: `Brake ${(brake*100).toFixed(0)}%`, severity: 'high', detail: `High brake wear: ${(brake*100).toFixed(0)}%` });
+  }
+
+  // High disruption risk
+  const dp = v.disruption_probability || 0;
+  if (dp >= 0.85) {
+    warnings.push({ emoji: '🚨', text: `Risk ${(dp*100).toFixed(0)}%`, severity: 'critical', detail: `Critical disruption probability: ${(dp*100).toFixed(0)}%` });
+  } else if (dp >= 0.70) {
+    warnings.push({ emoji: '⚠️', text: `Risk ${(dp*100).toFixed(0)}%`, severity: 'high', detail: `High disruption probability: ${(dp*100).toFixed(0)}%` });
+  }
+
+  // Anomaly detected
+  const anm = v.anomaly_score || 0;
+  if (anm >= 0.80) {
+    warnings.push({ emoji: '🔍', text: 'Anomaly', severity: 'critical', detail: `Critical anomaly detected: ${(anm*100).toFixed(0)}%` });
+  }
+
+  // Auto-rerouted
+  if (v.auto_rerouted) {
+    warnings.push({ emoji: '🔄', text: 'Rerouted', severity: 'ok', detail: v.reroute_reason || 'Auto-rerouted to avoid disruption' });
+  }
+
+  // Severe delay
+  const delay = v.delay_minutes || 0;
+  if (delay > 90) {
+    warnings.push({ emoji: '⏰', text: `${delay}min late`, severity: 'critical', detail: `Severe schedule delay: ${delay} minutes behind` });
+  } else if (delay > 45) {
+    warnings.push({ emoji: '⏰', text: `${delay}min late`, severity: 'high', detail: `Significant delay: ${delay} minutes behind` });
+  }
+
+  // Traffic congestion on vehicle's current segment
+  const td = v.traffic_density || 0;
+  if (td > 0.80) {
+    warnings.push({ emoji: '🚗', text: `Traffic ${(td*100).toFixed(0)}%`, severity: 'high', detail: `Severe congestion: ${(td*100).toFixed(0)}% density` });
+  }
+
+  return warnings;
+}
+
+function drawWarningOverlay(vlist) {
+  warningOverlayLayer.clearLayers();
+  if (!showWarnings || !vlist) return;
+
+  vlist.forEach(v => {
+    if (v.status === 'Delivered') return;
+    const warnings = getVehicleWarnings(v);
+    if (!warnings.length) return;
+
+    // Limit to top 3 most critical warnings per vehicle
+    const sevOrder = { critical: 4, high: 3, medium: 2, info: 1, ok: 0 };
+    const sorted = warnings.sort((a, b) => (sevOrder[b.severity] || 0) - (sevOrder[a.severity] || 0));
+    const top = sorted.slice(0, 3);
+
+    const badges = top.map(w =>
+      `<div class="vwarn-badge ${w.severity}" title="${w.detail}">
+        <span class="vwarn-emoji">${w.emoji}</span>
+        <span class="vwarn-text" style="color:${w.severity==='critical'?'#f85149':w.severity==='high'?'#ff9e2c':w.severity==='ok'?'#56d364':'#d29922'}">${w.text}</span>
+      </div>`
+    ).join('');
+
+    const html = `<div class="vwarn-wrap">${badges}</div>`;
+
+    const icon = L.divIcon({
+      html: html,
+      className: 'vwarn-icon',
+      iconSize: [110, top.length * 22],
+      iconAnchor: [-12, top.length * 11],  // offset right of the vehicle marker
+    });
+
+    const maxSev = top[0]?.severity || 'info';
+    L.marker([v.lat, v.lng], {
+      icon,
+      zIndexOffset: maxSev === 'critical' ? 700 : maxSev === 'high' ? 500 : 300,
+      interactive: false,
+    }).addTo(warningOverlayLayer);
+  });
+}
+
+// ── Weather overlay on map ────────────────────────────────────────────────────
+const WX_ICON_MAP = {
+  'Heavy Storm':    { emoji: '⛈️',  color: '#f85149', glow: 'rgba(248,81,73,0.3)' },
+  'Storm':          { emoji: '🌩️', color: '#f85149', glow: 'rgba(248,81,73,0.25)' },
+  'Thunderstorm':   { emoji: '⛈️',  color: '#f85149', glow: 'rgba(248,81,73,0.3)' },
+  'Heavy Rain':     { emoji: '🌧️', color: '#ff9e2c', glow: 'rgba(255,158,44,0.25)' },
+  'Rain':           { emoji: '🌧️', color: '#d29922', glow: 'rgba(210,153,34,0.2)' },
+  'Light Rain':     { emoji: '🌦️', color: '#58a6ff', glow: 'rgba(88,166,255,0.15)' },
+  'Drizzle':        { emoji: '🌦️', color: '#58a6ff', glow: 'rgba(88,166,255,0.12)' },
+  'Fog':            { emoji: '🌫️', color: '#8b949e', glow: 'rgba(139,148,158,0.2)' },
+  'Dense Fog':      { emoji: '🌫️', color: '#d29922', glow: 'rgba(210,153,34,0.2)' },
+  'Haze':           { emoji: '🌫️', color: '#8b949e', glow: 'rgba(139,148,158,0.15)' },
+  'Snow':           { emoji: '❄️',  color: '#79c0ff', glow: 'rgba(121,192,255,0.2)' },
+  'Blizzard':       { emoji: '🌨️', color: '#f85149', glow: 'rgba(248,81,73,0.25)' },
+  'Tornado':        { emoji: '🌪️', color: '#f85149', glow: 'rgba(248,81,73,0.35)' },
+  'Cyclone':        { emoji: '🌀',  color: '#f85149', glow: 'rgba(248,81,73,0.35)' },
+  'Heatwave':       { emoji: '🔥',  color: '#ff9e2c', glow: 'rgba(255,158,44,0.25)' },
+  'Hot':            { emoji: '☀️',  color: '#ff9e2c', glow: 'rgba(255,158,44,0.15)' },
+  'Dust Storm':     { emoji: '💨',  color: '#d29922', glow: 'rgba(210,153,34,0.2)' },
+  'Windy':          { emoji: '💨',  color: '#58a6ff', glow: 'rgba(88,166,255,0.15)' },
+  'Overcast':       { emoji: '☁️',  color: '#8b949e', glow: 'rgba(139,148,158,0.1)' },
+  'Cloudy':         { emoji: '⛅',  color: '#8b949e', glow: 'rgba(139,148,158,0.1)' },
+  'Partly Cloudy':  { emoji: '🌤️', color: '#56d364', glow: 'rgba(86,211,100,0.08)' },
+  'Clear':          { emoji: '☀️',  color: '#56d364', glow: 'rgba(86,211,100,0.08)' },
+  'Sunny':          { emoji: '☀️',  color: '#56d364', glow: 'rgba(86,211,100,0.08)' },
+};
+
+function getWxIcon(condition) {
+  if (!condition) return { emoji: '🌡️', color: '#8b949e', glow: 'rgba(139,148,158,0.1)' };
+  // Try exact match first
+  if (WX_ICON_MAP[condition]) return WX_ICON_MAP[condition];
+  // Fuzzy match
+  const lower = condition.toLowerCase();
+  if (lower.includes('storm') || lower.includes('thunder')) return WX_ICON_MAP['Heavy Storm'];
+  if (lower.includes('tornado') || lower.includes('cyclone')) return WX_ICON_MAP['Tornado'];
+  if (lower.includes('blizzard')) return WX_ICON_MAP['Blizzard'];
+  if (lower.includes('snow')) return WX_ICON_MAP['Snow'];
+  if (lower.includes('heavy rain')) return WX_ICON_MAP['Heavy Rain'];
+  if (lower.includes('rain') || lower.includes('drizzle')) return WX_ICON_MAP['Rain'];
+  if (lower.includes('fog') || lower.includes('mist')) return WX_ICON_MAP['Fog'];
+  if (lower.includes('haze') || lower.includes('smog')) return WX_ICON_MAP['Haze'];
+  if (lower.includes('dust')) return WX_ICON_MAP['Dust Storm'];
+  if (lower.includes('wind')) return WX_ICON_MAP['Windy'];
+  if (lower.includes('heat') || lower.includes('hot')) return WX_ICON_MAP['Heatwave'];
+  if (lower.includes('cloud') || lower.includes('overcast')) return WX_ICON_MAP['Cloudy'];
+  if (lower.includes('clear') || lower.includes('sunny')) return WX_ICON_MAP['Clear'];
+  return { emoji: '🌡️', color: '#8b949e', glow: 'rgba(139,148,158,0.1)' };
+}
+
+function getSevLabel(sev) {
+  if (sev >= 0.80) return 'EXTREME';
+  if (sev >= 0.60) return 'SEVERE';
+  if (sev >= 0.40) return 'MODERATE';
+  if (sev >= 0.20) return 'MILD';
+  return 'CLEAR';
+}
+
+function drawWeatherOverlay(weatherData) {
+  weatherOverlayLayer.clearLayers();
+  if (!showWeather || !weatherData) return;
+
+  Object.entries(weatherData).forEach(([city, wx]) => {
+    const pos = _hubCache[city];
+    if (!pos) return;
+
+    const sev = wx.severity || 0;
+    const cond = wx.condition || 'Unknown';
+    const wxInfo = getWxIcon(cond);
+    const sevLabel = getSevLabel(sev);
+    const isSevere = sev >= 0.55;
+    const sevPct = Math.min(100, Math.round(sev * 100));
+
+    // Severity bar color
+    const barCol = sev >= 0.70 ? '#f85149' : sev >= 0.45 ? '#d29922' : sev >= 0.20 ? '#58a6ff' : '#56d364';
+
+    const html = `
+      <div class="wx-marker">
+        <div class="wx-emoji ${isSevere ? 'severe' : ''}">${wxInfo.emoji}</div>
+        <div class="wx-glass" style="border-color:${wxInfo.color}22;box-shadow:0 4px 15px ${wxInfo.glow}, inset 0 1px 0 rgba(255,255,255,0.06);">
+          <div class="wx-cond" style="color:${wxInfo.color}">${cond}</div>
+          <div class="wx-sev-bar"><div class="wx-sev-fill" style="width:${sevPct}%;background:${barCol}"></div></div>
+        </div>
+      </div>
+    `;
+
+    // Offset the weather marker higher than the hub circle so they don't overlap
+    const icon = L.divIcon({
+      html: html,
+      className: 'weather-overlay-icon',
+      iconSize: [70, 58],
+      iconAnchor: [35, 70],  // anchor at bottom-center, so it floats above the hub dot
+    });
+
+    const temp = wx.temperature_c !== undefined ? `${wx.temperature_c}°C` : '';
+    const wind = wx.wind_speed !== undefined ? `${wx.wind_speed} km/h` : '';
+    const humidity = wx.humidity !== undefined ? `${wx.humidity}%` : '';
+
+    const tooltip = `
+      <div style="min-width:160px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:#fff">
+          ${wxInfo.emoji} ${city}
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="color:${wxInfo.color};font-weight:600">${cond}</span>
+          <span style="color:${barCol};font-weight:700;font-size:10px">${sevLabel}</span>
+        </div>
+        <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-bottom:6px;overflow:hidden">
+          <div style="height:100%;width:${sevPct}%;background:${barCol};border-radius:2px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px">
+          <div style="color:var(--muted)">Severity</div><div style="color:#fff;text-align:right">${sevPct}%</div>
+          ${temp ? `<div style="color:var(--muted)">Temp</div><div style="color:#fff;text-align:right">${temp}</div>` : ''}
+          ${wind ? `<div style="color:var(--muted)">Wind</div><div style="color:#fff;text-align:right">${wind}</div>` : ''}
+          ${humidity ? `<div style="color:var(--muted)">Humidity</div><div style="color:#fff;text-align:right">${humidity}</div>` : ''}
+        </div>
+        ${sev >= 0.55 ? '<div style="margin-top:5px;padding:3px 6px;background:rgba(248,81,73,0.15);border-radius:4px;color:#f85149;font-size:9px;font-weight:600;text-align:center">⚠️ WEATHER WARNING — Route Impact Likely</div>' : ''}
+        ${sev >= 0.35 && sev < 0.55 ? '<div style="margin-top:5px;padding:3px 6px;background:rgba(210,153,34,0.12);border-radius:4px;color:#d29922;font-size:9px;text-align:center">Advisory — Monitor conditions</div>' : ''}
+      </div>
+    `;
+
+    const marker = L.marker(pos, { icon, zIndexOffset: sev >= 0.55 ? 800 : 400 })
+      .addTo(weatherOverlayLayer)
+      .bindTooltip(tooltip, {
+        direction: 'top',
+        offset: [0, -12],
+        className: 'wx-tip',
+        opacity: 1,
+      });
+  });
+}
+
+// ── Fleet list ────────────────────────────────────────────────────────────────
+function renderList(vlist, autoRerouted){
+  const el=document.getElementById('vlist');
+  const sc=el.scrollTop;
+  el.innerHTML=vlist.map(v=>{
+    const p=v.disruption_probability||0, a=v.anomaly_score||0;
+    const risk=Math.max(p,a);
+    const rc=risk>0.7?'#f85149':risk>0.5?'#d29922':'#56d364';
+    const eco=v.eco_score||50;
+    const ec=eco>70?'#56d364':eco>40?'#d29922':'#f85149';
+    const cls=['on-time','delayed','at-risk','delivered'][[
+      'On Time','Delayed','At Risk','Delivered'].indexOf(v.status)]||'on-time';
+    const rerouted=v.auto_rerouted||autoRerouted?.includes(v.id);
+    const sel=selVid===v.id?' sel':'';
+    const reroutedCls=rerouted&&!sel?' rerouted':'';
+    const td=trendsData[v.id];
+    const tdir=td?.trend_direction||'STABLE';
+    const tarrow=tdir==='ACCELERATING'?'↑':tdir==='DECLINING'?'↓':'→';
+    return `<div class="vc${sel}${reroutedCls}" onclick="selectV('${v.id}')">
+      <div class="vc-top">
+        <span class="vid">${v.id}<span class="trend-arrow ${tdir}">${tarrow}</span></span>
+        <span class="badge ${cls}">${v.status}${rerouted?'<span class="reroute-badge">↺</span>':''}</span>
+      </div>
+      <div class="vc-r">${v.route_name}</div>
+      <div class="vc-bars">
+        <div class="mini-bar-row">
+          <div class="mini-bar"><div class="mini-fill" style="width:${(risk*100).toFixed(0)}%;background:${rc}"></div></div>
+          <div class="mini-val" style="color:${rc}">${(risk*100).toFixed(0)}%</div>
+        </div>
+        <div class="mini-bar-row">
+          <div class="mini-bar"><div class="mini-fill" style="width:${eco}%;background:${ec}"></div></div>
+          <div class="mini-val" style="color:${ec}">🌱${eco}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  el.scrollTop=sc;
+  document.getElementById('vcnt').textContent=vlist.length;
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+function renderAlerts(alerts){
+  document.getElementById('h-alerts').textContent=alerts.length;
+  document.getElementById('tb-alerts').textContent=alerts.length;
+  const el=document.getElementById('alert-list');
+  if(!alerts.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No active alerts ✓</div>';return;}
+  el.innerHTML=alerts.slice(0,12).map(a=>{
+    const t=new Date(a.created_at||Date.now()).toLocaleTimeString();
+    const sevCls=a.type==='CASCADE'?'CASCADE':a.severity;
+    const aid=a.id||a.alert_id||'';
+    const dispatched=dispatchedAlerts[aid]||[];
+    return `<div class="ai">
+      <div class="ai-top"><span class="sev-badge ${sevCls}">${a.type||a.severity}</span><span style="font-size:9px;color:var(--muted)">${t}</span></div>
+      <div class="ai-veh">${a.vehicle_id}</div>
+      <div class="ai-msg">${a.message||''}</div>
+      <div class="ai-rec">→ ${a.recommendation||''}</div>
+      <div style="display:flex;gap:3px;align-items:center;margin-top:3px;flex-wrap:wrap">
+        <button class="ai-ack" onclick="ackAlert('${aid}')">✓ Ack</button>
+        <button class="dispatch-btn ${dispatched.includes('SMS')?'sent':''}" onclick="dispatchAlert('${aid}','SMS',this)">${dispatched.includes('SMS')?'✓ SMS':'📱 SMS'}</button>
+        <button class="dispatch-btn ${dispatched.includes('Email')?'sent':''}" onclick="dispatchAlert('${aid}','Email',this)">${dispatched.includes('Email')?'✓ Email':'📧 Email'}</button>
+        <button class="dispatch-btn ${dispatched.includes('Push')?'sent':''}" onclick="dispatchAlert('${aid}','Push',this)">${dispatched.includes('Push')?'✓ Push':'🔔 Push'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function ackAlert(id){
+  if(id) await fetch(`${API}/alerts/${id}/acknowledge`,{method:'POST'});
+}
+
+// ── Cascade panel ─────────────────────────────────────────────────────────────
+function renderCascades(cascades){
+  cascadesData=cascades||[];
+  document.getElementById('h-cascades').textContent=cascades.length;
+  document.getElementById('tb-cascades').textContent=cascades.length;
+  document.getElementById('k-cas').textContent=cascades.length;
+  const el=document.getElementById('cascade-panel');
+  if(!cascades.length){
+    el.innerHTML='<div class="no-cascade">🟢 No active cascade events<br><small style="color:var(--muted)">System monitoring hub convergence</small></div>';
+    if(showCascadeLines) cascadeLineLayer.clearLayers();
+    return;
+  }
+  el.innerHTML=cascades.map(cas=>{
+    const pct=(cas.cascade_score*100).toFixed(0);
+    return `<div class="cas-card">
+      <div class="cas-top">
+        <span class="cas-hub">⚡ ${cas.epicenter_hub}</span>
+        <span class="cas-score">${pct}% cascade</span>
+      </div>
+      <div class="cascade-score-bar"><div class="cascade-score-fill" style="width:${pct}%"></div></div>
+      <div class="cas-trigger">${cas.trigger}</div>
+      <div class="cas-ttc">⏱ Est. ${cas.time_to_cascade_min||'?'} min to cascade · ${cas.projected_total_delay_min||0} min total delay projected</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Affected vehicles:</div>
+      <div class="cas-vehicles">${(cas.affected_vehicles||[]).map(v=>`<span class="cas-vid">${v}</span>`).join('')}</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Downstream: ${(cas.downstream_hubs||[]).join(', ')||'None'}</div>
+      <div class="cas-btns">
+        <button class="cas-btn accept-btn" onclick="acceptDiversions('${cas.id}')">✓ Accept All Diversions</button>
+        <button class="cas-btn resolve-btn" onclick="resolveCascade('${cas.id}')">✗ Resolve</button>
+      </div>
+    </div>`;
+  }).join('');
+  if(showCascadeLines) drawCascadeLines(cascades);
+}
+
+async function acceptDiversions(cid){
+  const r=await fetch(`${API}/cascades/${cid}/accept-diversions`,{method:'POST'});
+  const d=await r.json();
+  showToast('Cascade Diversions Accepted',`${d.count||0} vehicles rerouted away from epicentre`,'cascade');
+}
+
+async function resolveCascade(cid){
+  await fetch(`${API}/cascades/${cid}/resolve`,{method:'POST'});
+  showToast('Cascade Resolved',`Event ${cid} marked as mitigated`,'');
+}
+
+// ── Risk timeline chart ───────────────────────────────────────────────────────
+let timelineCtx=null;
+
+function initTimeline(){
+  const ctx=document.getElementById('timeline-chart').getContext('2d');
+  timelineChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:['-8','-7','-6','-5','-4','-3','-2','-1','now','+5m','+10m','+15m'],
+      datasets:[
+        {label:'Actual Risk',data:[],borderColor:'#1f6feb',backgroundColor:'rgba(31,111,235,0.1)',borderWidth:2,pointRadius:2,tension:0.3,fill:true},
+        {label:'Projected',data:[],borderColor:'#d29922',backgroundColor:'rgba(210,153,34,0.08)',borderWidth:1.5,borderDash:[5,3],pointRadius:0,tension:0.3,fill:false},
+        {label:'Warning threshold',data:Array(12).fill(0.60),borderColor:'#da3633',borderWidth:1,borderDash:[3,3],pointRadius:0},
+        {label:'Critical threshold',data:Array(12).fill(0.85),borderColor:'#f85149',borderWidth:1,borderDash:[2,2],pointRadius:0},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{
+        label:c=>`${c.dataset.label}: ${(c.raw*100).toFixed(0)}%`
+      }}},
+      scales:{
+        x:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'#30363d'}},
+        y:{min:0,max:1,ticks:{color:'#8b949e',font:{size:9},callback:v=>`${(v*100).toFixed(0)}%`},grid:{color:'#30363d'}}
+      },
+      animation:{duration:300}
+    }
+  });
+}
+
+function updateTimeline(){
+  const vid=document.getElementById('tl-vehicle').value;
+  if(!vid||!timelineChart) return;
+  const td=trendsData[vid];
+  const v=vehicles[vid];
+  if(!td||!v) return;
+
+  const hist=(td.history||[]).slice(-8);
+  const padded=Array(8-hist.length).fill(null).concat(hist);
+  const current=td.current_risk||0;
+  const proj5=td.projected_risk_5min||0;
+  const proj10=td.projected_risk_10min||0;
+  const proj15=td.projected_risk_15min||0;
+
+  // Actual: history + current, then nulls for future
+  const actual=[...padded,current,null,null,null];
+  // Projected: nulls for history, then current as start, then projections
+  const projected=[...Array(9).fill(null),proj5,proj10,proj15];
+
+  timelineChart.data.datasets[0].data=actual;
+  timelineChart.data.datasets[1].data=projected;
+  timelineChart.update('none');
+
+  // Trend info
+  const tdir=td.trend_direction||'STABLE';
+  const tcol=tdir==='ACCELERATING'?'#f85149':tdir==='DECLINING'?'#56d364':'#d29922';
+  const vel=td.risk_velocity_per_min||0;
+  const eta=td.eta_to_threshold_min;
+  document.getElementById('trend-info').innerHTML=`
+    <div class="ti"><div class="tv" style="color:${tcol}">${tdir==='ACCELERATING'?'↑':tdir==='DECLINING'?'↓':'→'} ${tdir}</div><div class="tl2">Trend</div></div>
+    <div class="ti"><div class="tv" style="color:${tcol}">${(vel*100).toFixed(2)}%/min</div><div class="tl2">Risk velocity</div></div>
+    <div class="ti"><div class="tv" style="color:#58a6ff">${(proj15*100).toFixed(0)}%</div><div class="tl2">Risk in 15 min</div></div>
+    <div class="ti"><div class="tv" style="color:#ff9e2c">${eta?eta+'min':'—'}</div><div class="tl2">ETA to threshold</div></div>
+  `;
+}
+
+function populateTimelineSelect(vlist){
+  const sel=document.getElementById('tl-vehicle');
+  const cur=sel.value;
+  const sorted=[...vlist].sort((a,b)=>Math.max(b.disruption_probability||0,b.anomaly_score||0)-Math.max(a.disruption_probability||0,a.anomaly_score||0));
+  sel.innerHTML='<option value="">— Select vehicle —</option>'+
+    sorted.map(v=>`<option value="${v.id}">${v.id} — ${v.status} (${((Math.max(v.disruption_probability||0,v.anomaly_score||0))*100).toFixed(0)}%)</option>`).join('');
+  if(cur) sel.value=cur;
+  if(!cur&&sorted.length) sel.value=sorted[0].id;
+  updateTimeline();
+}
+
+// ── Carbon ────────────────────────────────────────────────────────────────────
+function renderCarbon(carbon,vlist){
+  if(!carbon) return;
+  document.getElementById('c-saved').textContent=(carbon.co2_saved_vs_baseline||0).toFixed(1);
+  document.getElementById('c-trees').textContent=carbon.trees_equivalent||'0';
+  document.getElementById('c-total').textContent=(carbon.total_co2_kg||0).toFixed(1);
+  document.getElementById('h-co2').textContent=(carbon.co2_saved_vs_baseline||0).toFixed(0);
+  const maxCo2=Math.max(...vlist.map(v=>v.carbon_kg_emitted||0),0.01);
+  const bestEco=Math.max(...vlist.map(v=>v.eco_score||0),0);
+  document.getElementById('c-eco').textContent=bestEco.toFixed(0);
+  document.getElementById('co2-bars').innerHTML=vlist
+    .sort((a,b)=>(b.carbon_kg_emitted||0)-(a.carbon_kg_emitted||0))
+    .slice(0,10)
+    .map(v=>{
+      const pct=(v.carbon_kg_emitted||0)/maxCo2*100;
+      const col=v.co2_per_km>0.5?'#f85149':v.co2_per_km>0.25?'#d29922':'#56d364';
+      return `<div class="co2-row">
+        <div class="co2-label">${v.id}</div>
+        <div class="co2-bar"><div class="co2-fill" style="width:${pct.toFixed(0)}%;background:${col}"></div></div>
+        <div class="co2-val">${(v.carbon_kg_emitted||0).toFixed(2)}</div>
+      </div>`;
+    }).join('');
+}
+
+// ── Decisions ─────────────────────────────────────────────────────────────────
+function renderDecisions(decisions){
+  const el=document.getElementById('dec-list');
+  if(!decisions||!decisions.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No active recommendations</div>';return;}
+  const pcols={CRITICAL:'#f85149',HIGH:'#ff9e2c',MEDIUM:'#d29922',LOW:'#58a6ff'};
+  el.innerHTML=decisions.slice(0,12).map(d=>{
+    const col=pcols[d.priority]||'#58a6ff';
+    const autoExec=d.auto_execute?`<span class="auto-exec-badge">AUTO</span>`:'';
+    return `<div class="di">
+      <div class="di-top">
+        <span class="di-veh">${d.vehicle_id}${autoExec}</span>
+        <span class="di-pri" style="background:${col}22;color:${col}">${d.priority}</span>
+      </div>
+      <div class="di-act">▶ ${(d.primary_action||'').replace(/_/g,' ')}</div>
+      <div class="di-reason">${(d.reasons||[]).slice(0,2).join(' · ')}</div>
+      ${d.execution_status?`<div style="font-size:9px;color:var(--muted);margin-top:2px">${d.execution_status}</div>`:''}
+      ${d.eco_action?`<div style="font-size:9px;color:#56d364;margin-top:3px">🌱 Eco saves ${d.eco_action.co2_saving_pct||0}% CO₂</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Vehicle detail ────────────────────────────────────────────────────────────
+function selectV(vid){
+  selVid=vid;
+  const v=vehicles[vid];
+  if(!v) return;
+  document.getElementById('detail').style.display='';
+  document.getElementById('route-result').style.display='none';
+  document.getElementById('det-title').textContent=`${vid} — ${v.vehicle_type||''}`;
+  const td=trendsData[vid]||{};
+  const tdir=td.trend_direction||'STABLE';
+  const tarrow=tdir==='ACCELERATING'?'↑ Accelerating':tdir==='DECLINING'?'↓ Declining':'→ Stable';
+  const tcol=tdir==='ACCELERATING'?'#f85149':tdir==='DECLINING'?'#56d364':'#d29922';
+  const items=[
+    ['Driver',v.driver],['Cargo',v.cargo],
+    ['Origin',v.origin],['Dest.',v.destination],
+    ['Speed',`${v.speed_kmh?.toFixed(0)||'—'} km/h`],['Delay',`${v.delay_minutes||0} min`],
+    ['Fuel',`${((v.fuel_level||0)*100).toFixed(0)}%`],['Engine',`${v.engine_temp_c?.toFixed(0)||'—'}°C`],
+    ['Risk',`${((v.disruption_probability||0)*100).toFixed(0)}%`],
+    ['Anomaly',`${((v.anomaly_score||0)*100).toFixed(0)}%`],
+    ['Eco',`🌱 ${v.eco_score||'—'}`],['CO₂',`${(v.carbon_kg_emitted||0).toFixed(2)}kg`],
+    ['Trend',`<span style="color:${tcol}">${tarrow}</span>`],
+    ['ETA→risk',td.eta_to_threshold_min?`${td.eta_to_threshold_min}min`:'—'],
+  ];
+  document.getElementById('det-grid').innerHTML=items.map(([k,val])=>
+    `<div class="di-item"><div class="dk">${k}</div><div class="dv">${val}</div></div>`
+  ).join('');
+  if(v.iot_alerts?.length){
+    document.getElementById('det-grid').innerHTML+=
+      `<div class="di-item" style="grid-column:1/-1"><div class="dk">IoT</div><div class="dv" style="color:#f85149;font-size:10px">${v.iot_alerts.join(' · ')}</div></div>`;
+  }
+  if(v.auto_rerouted){
+    document.getElementById('det-grid').innerHTML+=
+      `<div class="di-item" style="grid-column:1/-1"><div class="dk">Auto-rerouted</div><div class="dv" style="color:#56d364">🔄 ${v.reroute_reason||''}</div></div>`;
+  }
+  // F5: Explainability bars
+  document.getElementById('det-grid').innerHTML+=renderExplainability(v);
+  // F10: Customer portal button
+  document.getElementById('det-grid').innerHTML+=
+    `<div class="di-item" style="grid-column:1/-1;margin-top:4px"><button class="opt-btn" style="background:#c084fc" onclick="showCustomerPortal('${vid}')">📱 Customer Tracking Portal</button></div>`;
+  map?.panTo([v.lat,v.lng]);
+  // Set timeline to this vehicle
+  document.getElementById('tl-vehicle').value=vid;
+  updateTimeline();
+  renderList(Object.values(vehicles),[]);
+}
+
+document.getElementById('opt-btn').addEventListener('click',async()=>{
+  if(!selVid) return;
+  const btn=document.getElementById('opt-btn');
+  btn.textContent='⏳ Computing…'; btn.disabled=true;
+  try{
+    const r=await fetch(`${API}/vehicles/${selVid}/optimize`);
+    const d=await r.json();
+    showRouteResult(d);
+  }catch(e){console.error(e);}
+  finally{btn.textContent='🔄 Optimize Route';btn.disabled=false;}
+});
+
+function showRouteResult(data){
+  const el=document.getElementById('route-result');
+  if(data.error){el.innerHTML=`<span style="color:var(--red)">${data.error}</span>`;el.style.display='';return;}
+  const best=data.best||{};
+  const path=best.path||[];
+  const hws=best.highways||[];
+  // Draw optimized route as polyline through waypoints
+  if(path.length>1&&best.waypoints?.length>1){
+    if(optRouteRenderer){try{optRouteRenderer.setMap(null)}catch(e){}}
+    if(optRouteLayer){optRouteLayer.remove&&optRouteLayer.remove();optRouteLayer=null;}
+    optRouteLayer=L.polyline(best.waypoints.map(w=>[w.lat,w.lng]),
+      {color:'#56d364',weight:3.5,opacity:0.9}).addTo(map);
+    map.fitBounds(optRouteLayer.getBounds(),{padding:[30,30]});
+  }
+  const hwsHtml=hws.length?`<div style="font-size:9px;color:#58a6ff;margin-bottom:3px">🛣️ ${hws.join(' → ')}</div>`:'';
+  const pathHtml=path.map((c,i)=>`<span class="rc">${c}</span>${i<path.length-1?'<span class="rarr">→</span>':''}`).join('');
+  const alts=(data.alternatives||[]).map(a=>{
+    const hw=a.highways?.length?`<span style="color:var(--muted)"> via ${a.highways.join('→')}</span>`:'';
+    return `<div style="margin-top:5px;padding:4px 6px;background:#1c2128;border-radius:4px;">
+      <span style="color:${a.label?.includes('Eco')?'#56d364':'#58a6ff'}">${a.label}</span>${hw}
+      · ${a.carbon?.total_km||0}km · ${a.travel_time_h||0}h · 🌱${a.eco_score||0}
+    </div>`;
+  }).join('');
+  el.style.display='';
+  el.innerHTML=`<div style="color:var(--muted);font-size:9px;margin-bottom:4px">${best.label||'Optimal'} <span style="color:#58a6ff;font-size:8px">[${data.algorithm||'dijkstra'}]</span></div>
+    ${hwsHtml}
+    <div class="rpath">${pathHtml}</div>
+    <div style="display:flex;gap:8px;font-size:9px;margin:4px 0">
+      <span style="color:#58a6ff">${best.carbon?.total_km||0}km</span>
+      <span style="color:#d29922">${best.travel_time_h||0}h</span>
+      <span style="color:#56d364">🌱${best.eco_score||0}</span>
+    </div>${alts}`;
+}
+
+// ── Toast notifications ───────────────────────────────────────────────────────
+function showToast(title, body, type=''){
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.innerHTML=`<div class="toast-title">${title}</div><div class="toast-body">${body}</div>`;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.animation='slideOut .3s ease forwards';setTimeout(()=>t.remove(),300);},4000);
+}
+
+let lastAutoRerouted=[], lastCascadeCount=0;
+function checkToasts(autoRerouted, cascades, metrics){
+  // Auto-reroute toasts
+  const newRerouted=(autoRerouted||[]).filter(vid=>!lastAutoRerouted.includes(vid));
+  if(newRerouted.length>0){
+    showToast(`🔄 Auto-Rerouted ${newRerouted.length} Vehicle${newRerouted.length>1?'s':''}`,
+      `${newRerouted.slice(0,3).join(', ')}${newRerouted.length>3?` +${newRerouted.length-3} more`:''}`,
+      '');
+  }
+  lastAutoRerouted=autoRerouted||[];
+  // New cascade toasts
+  const activeCas=cascades?.length||0;
+  if(activeCas>lastCascadeCount){
+    const newest=cascades?.[0];
+    if(newest){
+      showToast(`⚡ Cascade Detected: ${newest.epicenter_hub}`,
+        `${newest.convergence_count} vehicles converging · Score ${(newest.cascade_score*100).toFixed(0)}%`,
+        'cascade');
+    }
+  }
+  lastCascadeCount=activeCas;
+}
+
+// ── Metrics ───────────────────────────────────────────────────────────────────
+function updateMetrics(m,autoRerouted){
+  document.getElementById('h-total').textContent=m.total_vehicles||'—';
+  document.getElementById('h-ontime').textContent=m.on_time||0;
+  document.getElementById('h-delayed').textContent=m.delayed||0;
+  document.getElementById('h-risk').textContent=m.at_risk||0;
+  document.getElementById('h-rerouted').textContent=autoRerouted?.length||0;
+  document.getElementById('k-rerouted').textContent=m.auto_rerouted_this_cycle||0;
+}
+
+function updateKafka(kafka){
+  if(!kafka?.topics) return;
+  const t=kafka.topics;
+  const g=v=>v?.queue_depth??'—';
+  document.getElementById('k-gps').textContent=g(t['gps_events']);
+  document.getElementById('k-traf').textContent=g(t['traffic_events']);
+  document.getElementById('k-wx').textContent=g(t['weather_events']);
+  document.getElementById('k-feat').textContent=g(t['processed_features']);
+  document.getElementById('k-alrt').textContent=g(t['alert_events']);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function showTab(id,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='timeline') updateTimeline();
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+function connect(){
+  wsConn=new WebSocket(WS);
+  wsConn.onopen=()=>{
+    document.getElementById('cdot').classList.add('live');
+    document.getElementById('clabel').textContent='Live';
+    if(reconnTimer){clearInterval(reconnTimer);reconnTimer=null;}
+  };
+  wsConn.onmessage=({data})=>{
+    const msg=JSON.parse(data);
+    if(msg.type==='init'){
+      lastRoutes=msg.routes||[];
+      drawRoutes(lastRoutes);
+      cacheHubs(msg.hubs||[]);
+      drawHubs(msg.hubs||[],msg.hub_risk_map||{});
+      lastHubRiskMap=msg.hub_risk_map||{};
+      lastSegHeatmap=msg.segment_heatmap||[];
+      if(msg.weather){lastWeatherData=msg.weather;drawWeatherOverlay(msg.weather);}
+    }
+    if(msg.vehicles){
+      msg.vehicles.forEach(v=>{vehicles[v.id]=v;});
+    }
+    if(msg.trends) trendsData=msg.trends;
+    const vlist=Object.values(vehicles);
+    renderList(vlist, msg.auto_rerouted||[]);
+    updateVehicleMarkers(vlist);
+    if(msg.hub_risk_map){lastHubRiskMap=msg.hub_risk_map;updateHeatmap(msg.hub_risk_map);}
+    if(msg.segment_heatmap){lastSegHeatmap=msg.segment_heatmap;if(showTraffic)drawTrafficOverlay(msg.segment_heatmap);}
+    if(msg.weather){lastWeatherData=msg.weather;drawWeatherOverlay(msg.weather);}
+    if(msg.alerts)    renderAlerts(msg.alerts);
+    if(msg.cascades)  renderCascades(msg.cascades);
+    if(msg.decisions) renderDecisions(msg.decisions);
+    if(msg.metrics)   updateMetrics(msg.metrics, msg.auto_rerouted);
+    if(msg.carbon)    renderCarbon(msg.carbon,vlist);
+    if(msg.kafka)     updateKafka(msg.kafka);
+    checkToasts(msg.auto_rerouted, msg.cascades, msg.metrics);
+    if(selVid&&vehicles[selVid]) selectV(selVid);
+    populateTimelineSelect(vlist);
+    // ── Wire new features ──
+    renderSLA(vlist);
+    renderDrivers(vlist);
+    renderROI(vlist, msg.carbon, msg.metrics);
+    trackFeedback(vlist);
+    recordSnapshot();
+    if(localStorage.getItem('owm_api_key')&&Math.random()<0.05)fetchRealWeather();
+    document.getElementById('ws-ping').textContent=new Date().toLocaleTimeString();
+  };
+  wsConn.onclose=()=>{
+    document.getElementById('cdot').classList.remove('live');
+    document.getElementById('clabel').textContent='Reconnecting…';
+    document.getElementById('ws-ping').textContent='Offline';
+    if(!reconnTimer) reconnTimer=setInterval(connect,4000);
+  };
+  wsConn.onerror=()=>wsConn.close();
+}
+
+// ── F1: SLA Breach Predictor ──────────────────────────────────────────────────
+function renderSLA(vlist){
+  const el=document.getElementById('sla-panel');
+  const items=vlist.filter(v=>v.status!=='Delivered').map(v=>{
+    const delay=v.delay_minutes||0;
+    const dist=v.distance_km||800;
+    const prog=v.progress||0;
+    const remainKm=dist*(1-prog);
+    const speed=v.speed_kmh||40;
+    const etaHrs=remainKm/Math.max(speed,1);
+    const slaHrs=8+(Math.random()*4);
+    const elapsedHrs=prog*dist/Math.max(speed,1);
+    const slackHrs=slaHrs-elapsedHrs-etaHrs-(delay/60);
+    const dp=v.disruption_probability||0;
+    const conf=Math.min(99,Math.round(50+dp*45+(delay>30?10:0)));
+    let cls,label;
+    if(slackHrs<-0.5){cls='sla-breached';label='BREACHED';}
+    else if(slackHrs<1){cls='sla-breach';label='BREACH RISK';}
+    else if(slackHrs<3){cls='sla-watch';label='WATCH';}
+    else{cls='sla-safe';label='SAFE';}
+    return{vid:v.id,shipment:v.shipment_id||v.id,customer:v.driver,slack:slackHrs,conf,cls,label,delay,dest:v.destination};
+  }).sort((a,b)=>a.slack-b.slack);
+  if(!items.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">All shipments within SLA ✓</div>';return;}
+  el.innerHTML=items.slice(0,15).map(it=>{
+    const barPct=Math.max(0,Math.min(100,(1-it.slack/8)*100));
+    const barCol=it.slack<0?'#f85149':it.slack<1?'#f85149':it.slack<3?'#d29922':'#56d364';
+    return `<div class="sla-item">
+      <div class="sla-top"><span class="sla-vid">${it.vid}</span><span class="sla-badge ${it.cls}">${it.label}</span></div>
+      <div class="sla-info">${it.shipment} → ${it.dest} · Delay: ${it.delay}min · Slack: ${it.slack.toFixed(1)}h</div>
+      <div class="sla-info">Customer: ${it.customer} · Breach confidence: ${it.conf}%</div>
+      <div class="sla-bar"><div class="sla-bar-fill" style="width:${barPct}%;background:${barCol}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── F2: What-If Scenario Simulator ────────────────────────────────────────────
+function openWhatIf(){
+  const sel=document.getElementById('whatif-hub');
+  const hubs=Object.keys(_hubCache);
+  sel.innerHTML='<option value="">— None —</option>'+hubs.map(h=>`<option value="${h}">${h}</option>`).join('');
+  document.getElementById('whatif-modal').classList.add('open');
+  document.getElementById('whatif-results').innerHTML='';
+}
+function closeWhatIf(){document.getElementById('whatif-modal').classList.remove('open');}
+function runWhatIf(){
+  const blockedHub=document.getElementById('whatif-hub').value;
+  const wxOverride=document.getElementById('whatif-weather').value;
+  const extraV=parseInt(document.getElementById('whatif-extra').value)||0;
+  const trafMul=parseFloat(document.getElementById('whatif-traffic').value)||1;
+  const vlist=Object.values(vehicles);
+  const now={delays:0,atRisk:0,cascades:cascadesData.length,co2:0,avgRisk:0};
+  vlist.forEach(v=>{now.delays+=v.delay_minutes||0;now.co2+=v.carbon_kg_emitted||0;
+    now.avgRisk+=Math.max(v.disruption_probability||0,v.anomaly_score||0);
+    if(v.status==='At Risk')now.atRisk++;});
+  now.avgRisk=vlist.length?(now.avgRisk/vlist.length):0;
+  let simDelays=now.delays,simRisk=now.avgRisk,simCascades=now.cascades,simCo2=now.co2;
+  if(blockedHub){
+    const affected=vlist.filter(v=>(v.origin===blockedHub||v.destination===blockedHub||v.route_name?.includes(blockedHub)));
+    simDelays+=affected.length*45;simRisk+=0.15;simCascades+=1;simCo2+=affected.length*2;
+  }
+  if(wxOverride==='Heavy Storm'){simDelays+=vlist.length*20;simRisk+=0.2;simCascades+=Math.floor(vlist.length/8);simCo2+=vlist.length*1.5;}
+  else if(wxOverride==='Fog'){simDelays+=vlist.length*10;simRisk+=0.08;}
+  else if(wxOverride==='Clear'){simDelays=Math.max(0,simDelays-vlist.length*5);simRisk=Math.max(0,simRisk-0.1);}
+  simRisk*=trafMul;simDelays*=trafMul;
+  if(extraV>0){simDelays=Math.max(0,simDelays-extraV*15);simRisk=Math.max(0,simRisk-extraV*0.02);}
+  else if(extraV<0){simDelays+=Math.abs(extraV)*20;simRisk+=Math.abs(extraV)*0.03;}
+  function diff(a,b,unit,inv){const d=b-a;const cls=((inv?d<0:d>0)?'worse':'better');const sign=d>0?'+':'';return `<span class="whatif-diff ${cls}">${sign}${typeof a==='number'&&a%1?d.toFixed(1):Math.round(d)}${unit}</span>`;}
+  document.getElementById('whatif-results').innerHTML=`
+    <div class="whatif-results">
+      <div class="whatif-card"><h4>📊 Before (Current)</h4>
+        <div class="whatif-stat"><span class="wk">Total Delay</span><span class="wv">${Math.round(now.delays)} min</span></div>
+        <div class="whatif-stat"><span class="wk">At Risk</span><span class="wv">${now.atRisk}</span></div>
+        <div class="whatif-stat"><span class="wk">Avg Risk</span><span class="wv">${(now.avgRisk*100).toFixed(1)}%</span></div>
+        <div class="whatif-stat"><span class="wk">Cascades</span><span class="wv">${now.cascades}</span></div>
+        <div class="whatif-stat"><span class="wk">CO₂</span><span class="wv">${now.co2.toFixed(1)} kg</span></div>
+      </div>
+      <div class="whatif-card"><h4>🔮 After (Simulated)</h4>
+        <div class="whatif-stat"><span class="wk">Total Delay</span><span class="wv">${Math.round(simDelays)} min ${diff(now.delays,simDelays,' min',false)}</span></div>
+        <div class="whatif-stat"><span class="wk">At Risk</span><span class="wv">${now.atRisk+Math.round((simRisk-now.avgRisk)*vlist.length*0.5)} ${diff(0,Math.round((simRisk-now.avgRisk)*vlist.length*0.5),'',false)}</span></div>
+        <div class="whatif-stat"><span class="wk">Avg Risk</span><span class="wv">${(Math.min(1,simRisk)*100).toFixed(1)}% ${diff(now.avgRisk,simRisk,'%',false)}</span></div>
+        <div class="whatif-stat"><span class="wk">Cascades</span><span class="wv">${simCascades} ${diff(now.cascades,simCascades,'',false)}</span></div>
+        <div class="whatif-stat"><span class="wk">CO₂</span><span class="wv">${simCo2.toFixed(1)} kg ${diff(now.co2,simCo2,' kg',false)}</span></div>
+      </div>
+    </div>`;
+}
+
+// ── F3: Driver Behavior Scoring ───────────────────────────────────────────────
+function computeDriverScore(v){
+  const speed=v.speed_kmh||0,fuel=v.fuel_level||0.5,brake=v.brake_wear||0;
+  const onTime=v.status==='On Time'?1:v.status==='Delayed'?0.4:0.6;
+  const fuelEff=fuel>0.5?1:fuel>0.2?0.6:0.3;
+  const brakeScore=brake<0.5?1:brake<0.7?0.6:0.2;
+  const speedScore=speed<80?1:speed<100?0.7:0.3;
+  const eco=(v.eco_score||50)/100;
+  const raw=(onTime*25+fuelEff*20+brakeScore*20+speedScore*20+eco*15);
+  return Math.round(Math.min(100,Math.max(0,raw)));
+}
+function renderDrivers(vlist){
+  const el=document.getElementById('driver-panel');
+  const drivers={};
+  vlist.forEach(v=>{
+    const name=v.driver||v.id;
+    if(!drivers[name])drivers[name]={name,vehicles:[],totalScore:0,count:0,hoursToday:0,hoursWeek:0};
+    const sc=computeDriverScore(v);
+    drivers[name].vehicles.push({id:v.id,score:sc,speed:v.speed_kmh||0,fuel:v.fuel_level||0,brake:v.brake_wear||0,onTime:v.status==='On Time'});
+    drivers[name].totalScore+=sc;drivers[name].count++;
+    drivers[name].hoursToday=Math.max(drivers[name].hoursToday,v.driving_hours_today||0);
+    drivers[name].hoursWeek=Math.max(drivers[name].hoursWeek,v.driving_hours_week||0);
+  });
+  const ranked=Object.values(drivers).map(d=>({...d,avg:Math.round(d.totalScore/d.count)})).sort((a,b)=>b.avg-a.avg);
+  if(!ranked.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No driver data</div>';return;}
+  el.innerHTML=ranked.map((d,i)=>{
+    const col=d.avg>=80?'#56d364':d.avg>=50?'#d29922':'#f85149';
+    // Fatigue status per Motor Transport Workers Act, 1961
+    // Daily: max 8h, Caution >6h, Danger >=8h, Violation >8h
+    // Weekly: max 60h, Caution >48h, Danger >=60h
+    const hd=d.hoursToday, hw=d.hoursWeek;
+    let dayStatus,dayCol,dayCls;
+    if(hd>=8){dayStatus='VIOLATION';dayCol='#f85149';dayCls='fatigue-violation';}
+    else if(hd>=6){dayStatus='TIRED';dayCol='#d29922';dayCls='fatigue-caution';}
+    else if(hd>=4){dayStatus='CAUTION';dayCol='#d29922';dayCls='fatigue-caution';}
+    else{dayStatus='FRESH';dayCol='#56d364';dayCls='fatigue-ok';}
+    let weekStatus,weekCol,weekCls;
+    if(hw>=60){weekStatus='VIOLATION';weekCol='#f85149';weekCls='fatigue-violation';}
+    else if(hw>=48){weekStatus='LIMIT';weekCol='#d29922';weekCls='fatigue-caution';}
+    else{weekStatus='OK';weekCol='#56d364';weekCls='fatigue-ok';}
+    const dayPct=Math.min(100,(hd/10)*100);
+    const weekPct=Math.min(100,(hw/70)*100);
+    return `<div class="driver-item">
+      <div class="driver-top">
+        <span><span class="driver-rank">#${i+1}</span><span class="driver-name">${d.name}</span></span>
+        <span class="driver-score-badge" style="color:${col}">${d.avg}</span>
+      </div>
+      <div class="driver-metrics">
+        <div class="driver-metric">Vehicles: <span>${d.count}</span></div>
+        <div class="driver-metric">On-time: <span>${d.vehicles.filter(x=>x.onTime).length}/${d.count}</span></div>
+        <div class="driver-metric">Avg Speed: <span>${Math.round(d.vehicles.reduce((s,x)=>s+x.speed,0)/d.count)} km/h</span></div>
+        <div class="driver-metric">Brake: <span>${Math.round(d.vehicles.reduce((s,x)=>s+x.brake,0)/d.count*100)}%</span></div>
+      </div>
+      <div class="fatigue-section">
+        <div class="fatigue-row">
+          <span class="fatigue-label">Daily</span>
+          <div class="fatigue-bar"><div class="fatigue-fill" style="width:${dayPct}%;background:${dayCol}"></div></div>
+          <span class="fatigue-val">${hd.toFixed(1)}h/8h</span>
+          <span class="fatigue-badge ${dayCls}">${dayStatus}</span>
+        </div>
+        <div class="fatigue-row">
+          <span class="fatigue-label">Weekly</span>
+          <div class="fatigue-bar"><div class="fatigue-fill" style="width:${weekPct}%;background:${weekCol}"></div></div>
+          <span class="fatigue-val">${hw.toFixed(0)}h/60h</span>
+          <span class="fatigue-badge ${weekCls}">${weekStatus}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── F4: Alert Dispatch Enhancement ────────────────────────────────────────────
+let dispatchedAlerts={};
+function dispatchAlert(alertId,channel,btn){
+  if(btn.classList.contains('sent'))return;
+  btn.classList.add('sent');btn.textContent=`✓ ${channel}`;
+  if(!dispatchedAlerts[alertId])dispatchedAlerts[alertId]=[];
+  dispatchedAlerts[alertId].push(channel);
+  showToast(`📤 Alert Dispatched`,`Alert sent via ${channel}`,channel==='SMS'?'critical':'');
+}
+
+// ── F5: Explainability Layer ──────────────────────────────────────────────────
+let lastFeatureImp={};
+function computeExplainability(v){
+  const factors=[
+    {name:'Traffic Density',value:v.traffic_density||0,weight:0.25},
+    {name:'Weather Severity',value:v.weather_severity||0,weight:0.20},
+    {name:'Engine Temp',value:Math.min(1,(v.engine_temp_c||80)/120),weight:0.15},
+    {name:'Fuel Level',value:1-(v.fuel_level||0.5),weight:0.12},
+    {name:'Brake Wear',value:v.brake_wear||0,weight:0.10},
+    {name:'Speed Factor',value:Math.min(1,(v.speed_kmh||50)/120),weight:0.08},
+    {name:'Delay',value:Math.min(1,(v.delay_minutes||0)/120),weight:0.06},
+    {name:'Cargo Risk',value:v.cargo==='Hazardous'?0.8:v.cargo==='Perishable'?0.5:0.2,weight:0.04},
+  ];
+  const total=factors.reduce((s,f)=>s+f.value*f.weight,0);
+  return factors.map(f=>({name:f.name,contribution:total>0?Math.round(f.value*f.weight/total*100):0,raw:f.value}))
+    .sort((a,b)=>b.contribution-a.contribution).slice(0,5);
+}
+function renderExplainability(v){
+  const factors=computeExplainability(v);
+  const colors=['#1f6feb','#d29922','#f85149','#56d364','#c084fc'];
+  return `<div class="explain-section"><div class="explain-title">🧠 Why this risk? (F5 Explainability)</div>
+    ${factors.map((f,i)=>`<div class="explain-row">
+      <div class="explain-label">${f.name}</div>
+      <div class="explain-bar"><div class="explain-fill" style="width:${f.contribution}%;background:${colors[i%5]}"></div></div>
+      <div class="explain-val">${f.contribution}%</div>
+    </div>`).join('')}</div>`;
+}
+
+// ── F6: Historical Replay & Post-Mortem ───────────────────────────────────────
+let replayBuffer=[],replayIdx=-1,replayPlaying=false,replayTimer=null,replaySpeed=5;
+function recordSnapshot(){
+  const snap={ts:new Date().toISOString(),vehicles:JSON.parse(JSON.stringify(Object.values(vehicles))),
+    cascades:cascadesData.length,alerts:document.getElementById('h-alerts').textContent};
+  replayBuffer.push(snap);
+  if(replayBuffer.length>200)replayBuffer.shift();
+  const sl=document.getElementById('replay-slider');
+  sl.max=replayBuffer.length-1;
+  document.getElementById('replay-info').textContent=`📼 ${replayBuffer.length} snapshots buffered`;
+}
+function toggleReplay(){
+  replayPlaying=!replayPlaying;
+  document.getElementById('replay-play').textContent=replayPlaying?'⏸ Pause':'▶ Play';
+  document.getElementById('replay-play').classList.toggle('active',replayPlaying);
+  if(replayPlaying){if(replayIdx<0)replayIdx=0;advanceReplay();}
+  else if(replayTimer){clearTimeout(replayTimer);}
+}
+function advanceReplay(){
+  if(!replayPlaying||replayIdx>=replayBuffer.length-1){replayPlaying=false;document.getElementById('replay-play').textContent='▶ Play';return;}
+  replayIdx++;seekReplay(replayIdx);
+  replayTimer=setTimeout(advanceReplay,1000/replaySpeed);
+}
+function stepReplay(dir){replayPlaying=false;document.getElementById('replay-play').textContent='▶ Play';
+  replayIdx=Math.max(0,Math.min(replayBuffer.length-1,replayIdx+dir));seekReplay(replayIdx);}
+function seekReplay(idx){
+  replayIdx=parseInt(idx);
+  document.getElementById('replay-slider').value=replayIdx;
+  document.getElementById('replay-time').textContent=`${replayIdx+1} / ${replayBuffer.length}`;
+  const snap=replayBuffer[replayIdx];if(!snap)return;
+  const el=document.getElementById('replay-snapshot');
+  const t=new Date(snap.ts).toLocaleTimeString();
+  const vlist=snap.vehicles||[];
+  const risk=vlist.length?vlist.reduce((s,v)=>s+Math.max(v.disruption_probability||0,v.anomaly_score||0),0)/vlist.length:0;
+  const delayed=vlist.filter(v=>v.status==='Delayed'||v.status==='At Risk').length;
+  el.innerHTML=`<div class="replay-snap"><strong>⏱ ${t}</strong> · Vehicles: ${vlist.length} · Avg Risk: ${(risk*100).toFixed(0)}% · Delayed/Risk: ${delayed} · Cascades: ${snap.cascades} · Alerts: ${snap.alerts}</div>`;
+}
+function setReplaySpeed(v){replaySpeed=parseInt(v);}
+
+// ── F7: Real Weather Integration ──────────────────────────────────────────────
+function openSettings(){
+  document.getElementById('settings-modal').classList.add('open');
+  document.getElementById('owm-key').value=localStorage.getItem('owm_api_key')||'';
+  document.getElementById('gmaps-key').value=localStorage.getItem('gmaps_api_key')||'';
+  document.getElementById('gmaps-status').innerHTML=localStorage.getItem('gmaps_api_key')?'🟢 Google Maps API key configured':'🟡 Using default key — add your own for production';
+  updateWeatherSourceStatus();
+}
+function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
+function saveSettings(){
+  const key=document.getElementById('owm-key').value.trim();
+  if(key)localStorage.setItem('owm_api_key',key);
+  else localStorage.removeItem('owm_api_key');
+  const gkey=document.getElementById('gmaps-key').value.trim();
+  if(gkey)localStorage.setItem('gmaps_api_key',gkey);
+  else localStorage.removeItem('gmaps_api_key');
+  updateWeatherSourceStatus();
+  showToast('⚙️ Settings Saved',key?'Live weather enabled':'Using simulated weather','');
+  closeSettings();
+  if(key)fetchRealWeather();
+}
+function updateWeatherSourceStatus(){
+  const key=localStorage.getItem('owm_api_key');
+  document.getElementById('weather-source-status').innerHTML=key?'🟢 Live — OpenWeatherMap connected':'🔴 Simulated — No API key configured';
+}
+async function fetchRealWeather(){
+  const key=localStorage.getItem('owm_api_key');if(!key)return;
+  const hubs=Object.entries(_hubCache);
+  for(const [name,pos] of hubs.slice(0,5)){
+    try{
+      const r=await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${pos[0]}&lon=${pos[1]}&appid=${key}&units=metric`);
+      if(!r.ok)continue;const d=await r.json();
+      if(lastWeatherData[name]){
+        lastWeatherData[name].condition=d.weather?.[0]?.main||lastWeatherData[name].condition;
+        lastWeatherData[name].temperature_c=d.main?.temp;
+        lastWeatherData[name].humidity=d.main?.humidity;
+        lastWeatherData[name].wind_speed=Math.round((d.wind?.speed||0)*3.6);
+        lastWeatherData[name]._live=true;
+      }
+    }catch(e){console.warn('Weather fetch error for',name,e);}
+  }
+  drawWeatherOverlay(lastWeatherData);
+}
+
+// ── F8: ROI Calculator ────────────────────────────────────────────────────────
+let roiHistory=[];
+function computeROI(vlist,carbon,metrics){
+  const fuelSavedL=(carbon?.co2_saved_vs_baseline||0)/2.31;
+  const fuelVal=fuelSavedL*90;
+  const rerouteSavings=(metrics?.auto_rerouted_this_cycle||0)*2500;
+  const slaBreachesAvoided=vlist.filter(v=>v.auto_rerouted&&v.delay_minutes>30).length;
+  const slaVal=slaBreachesAvoided*50000;
+  const kmSaved=(carbon?.co2_saved_vs_baseline||0)*0.8;
+  const kmVal=kmSaved*2;
+  const total=fuelVal+rerouteSavings+slaVal+kmVal;
+  roiHistory.push({ts:Date.now(),total});
+  if(roiHistory.length>100)roiHistory.shift();
+  return{total,fuelVal,rerouteSavings,slaVal,kmVal,fuelSavedL,slaBreachesAvoided,kmSaved};
+}
+function renderROI(vlist,carbon,metrics){
+  const roi=computeROI(vlist,carbon,metrics);
+  document.getElementById('h-roi').textContent=`💰 ₹${Math.round(roi.total).toLocaleString('en-IN')}`;
+  const el=document.getElementById('roi-panel');
+  el.innerHTML=`
+    <div class="roi-big"><div class="roi-amount">₹${Math.round(roi.total).toLocaleString('en-IN')}</div><div class="roi-label">Estimated Savings Today</div></div>
+    <div class="roi-grid">
+      <div class="roi-card"><div class="rv" style="color:#56d364">₹${Math.round(roi.fuelVal).toLocaleString('en-IN')}</div><div class="rl">⛽ Fuel Saved (${roi.fuelSavedL.toFixed(1)}L)</div></div>
+      <div class="roi-card"><div class="rv" style="color:#58a6ff">₹${Math.round(roi.rerouteSavings).toLocaleString('en-IN')}</div><div class="rl">🔄 Reroute Savings</div></div>
+      <div class="roi-card"><div class="rv" style="color:#f85149">₹${Math.round(roi.slaVal).toLocaleString('en-IN')}</div><div class="rl">📦 SLA Penalties Avoided (${roi.slaBreachesAvoided})</div></div>
+      <div class="roi-card"><div class="rv" style="color:#d29922">₹${Math.round(roi.kmVal).toLocaleString('en-IN')}</div><div class="rl">🛣️ Distance Saved (${roi.kmSaved.toFixed(0)}km)</div></div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;">💡 Rates: ₹90/L fuel · ₹50,000/SLA breach · ₹2/km · ₹2,500/reroute</div>`;
+}
+
+// ── F9: Feedback Loop — Outcome Tracking ──────────────────────────────────────
+let feedbackData={predictions:0,correct:0,delivered:0,retrains:0,lastAcc:0};
+let deliveredTracker={};
+function trackFeedback(vlist){
+  vlist.forEach(v=>{
+    if(v.status==='Delivered'&&!deliveredTracker[v.id]){
+      deliveredTracker[v.id]=true;
+      feedbackData.delivered++;
+      const dp=v.disruption_probability||0;
+      const wasDisrupted=(v.delay_minutes||0)>30;
+      const predicted=dp>=0.60;
+      feedbackData.predictions++;
+      if(predicted===wasDisrupted)feedbackData.correct++;
+    }
+  });
+  feedbackData.lastAcc=feedbackData.predictions>0?Math.round(feedbackData.correct/feedbackData.predictions*100):0;
+  if(feedbackData.predictions>0&&feedbackData.predictions%20===0)feedbackData.retrains++;
+  const el=document.getElementById('feedback-stats');
+  el.innerHTML=`
+    <div class="feedback-stat"><span class="fk">Deliveries tracked</span><span class="fv">${feedbackData.delivered}</span></div>
+    <div class="feedback-stat"><span class="fk">Predictions evaluated</span><span class="fv">${feedbackData.predictions}</span></div>
+    <div class="feedback-stat"><span class="fk">Accuracy</span><span class="fv" style="color:${feedbackData.lastAcc>=80?'#56d364':feedbackData.lastAcc>=60?'#d29922':'#f85149'}">${feedbackData.lastAcc}%</span></div>
+    <div class="feedback-stat"><span class="fk">Online retrains</span><span class="fv">${feedbackData.retrains}</span></div>
+    <div style="margin-top:6px;font-size:9px;color:var(--muted)">${feedbackData.retrains>0?`Model retrained ${feedbackData.retrains} time${feedbackData.retrains>1?'s':''} — accuracy ${feedbackData.lastAcc}%`:'Awaiting enough outcomes for retrain…'}</div>`;
+}
+
+// ── F10: Customer Tracking Portal ─────────────────────────────────────────────
+function showCustomerPortal(vid){
+  const v=vehicles[vid];if(!v)return;
+  document.getElementById('customer-modal').classList.add('open');
+  const delay=v.delay_minutes||0;
+  const prog=Math.round((v.progress||0)*100);
+  const statusEmoji=v.status==='On Time'?'🟢':v.status==='Delayed'?'🟡':'🔴';
+  const delayCls=delay>60?'bad':delay>30?'warn':'ok';
+  const delayMsg=delay>30?`<div class="customer-delay ${delayCls}">⚠️ We apologize for the delay. Your shipment is ${delay} minutes behind schedule. New estimated arrival has been updated.</div>`
+    :`<div class="customer-delay ok">✅ Your shipment is on track!</div>`;
+  document.getElementById('customer-content').innerHTML=`
+    <div class="customer-card">
+      <div class="customer-status">${statusEmoji} ${v.status}</div>
+      <div class="customer-id">${v.shipment_id||v.id}</div>
+      <div class="customer-route">${v.origin} → ${v.destination}</div>
+      ${delayMsg}
+      <div class="customer-grid">
+        <div class="customer-field"><div class="cf-label">Cargo</div><div class="cf-value">${v.cargo||'—'}</div></div>
+        <div class="customer-field"><div class="cf-label">Vehicle</div><div class="cf-value">${v.vehicle_type||'—'}</div></div>
+        <div class="customer-field"><div class="cf-label">Progress</div><div class="cf-value">${prog}%</div></div>
+        <div class="customer-field"><div class="cf-label">Driver</div><div class="cf-value">${v.driver||'—'}</div></div>
+        <div class="customer-field"><div class="cf-label">Current Speed</div><div class="cf-value">${v.speed_kmh?.toFixed(0)||'—'} km/h</div></div>
+        <div class="customer-field"><div class="cf-label">Delay</div><div class="cf-value">${delay} min</div></div>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:10px;">Shareable link: /track/${v.shipment_id||v.id} · Auto-updates via WebSocket</div>
+    </div>`;
+}
+function closeCustomerPortal(){document.getElementById('customer-modal').classList.remove('open');}
+
+const GMAPS_API_KEY = 'AIzaSyCjghcsmx0vdSgCFLaH6z5fT8KKwbvP4kw';
+function _loadGoogleMaps() {
+  const key = localStorage.getItem('gmaps_api_key') || GMAPS_API_KEY;
+  const s = document.createElement('script');
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=_onGMapsReady`;
+  s.async = true;
+  s.defer = true;
+  document.head.appendChild(s);
+}
+function _onGMapsReady() {
+  // Load the shim (defines L.* backed by Google Maps)
+  const s = document.createElement('script');
+  s.src = '/gmaps-shim.js';
+  s.onload = function() {
+    initMap();
+    initTimeline();
+    connect();
+  };
+  document.head.appendChild(s);
+}
+_loadGoogleMaps();
+</script>
+</body>
+</html>

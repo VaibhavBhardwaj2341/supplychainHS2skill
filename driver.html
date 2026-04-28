@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Driver App — SSC</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--bg:#0d1117;--s:#161b22;--b:#30363d;--text:#c9d1d9;--muted:#8b949e;--green:#238636;--blue:#1f6feb;--red:#da3633;--yellow:#d29922;--r:10px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;}
+/* Header */
+header{background:var(--s);border-bottom:1px solid var(--b);padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.av{width:38px;height:38px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.hinfo{flex:1;}
+.hname{font-size:14px;font-weight:700;color:#fff;}
+.hvid{font-size:11px;color:var(--muted);}
+.status-pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.On-Time{background:#1a3a22;color:#56d364;}.Delayed{background:#3d2b00;color:#d29922;}
+.At-Risk{background:#3d1212;color:#f85149;}.Delivered{background:#1c2128;color:var(--muted);}
+/* Vehicle picker */
+.picker{background:var(--s);padding:10px 14px;border-bottom:1px solid var(--b);}
+.picker label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;}
+.picker select{width:100%;background:#0d1117;color:var(--text);border:1px solid var(--b);border-radius:var(--r);padding:8px 10px;font-size:13px;outline:none;}
+/* Card */
+.card{background:var(--s);border-radius:var(--r);margin:10px;padding:14px;border:1px solid var(--b);}
+.card-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+/* Trip info */
+.trip-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.trip-icon{font-size:18px;width:28px;text-align:center;}
+.trip-info{}
+.trip-label{font-size:10px;color:var(--muted);}
+.trip-val{font-size:14px;font-weight:600;color:#fff;}
+.progress-wrap{margin:10px 0;}
+.prog-bar{height:6px;background:var(--b);border-radius:3px;margin-top:4px;}
+.prog-fill{height:100%;border-radius:3px;background:var(--green);transition:width .6s;}
+/* Map */
+#nav-map{height:200px;border-radius:var(--r);overflow:hidden;border:1px solid var(--b);}
+/* IoT gauges */
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.gauge{background:#0d1117;border-radius:var(--r);padding:10px;text-align:center;}
+.gauge .gval{font-size:20px;font-weight:700;line-height:1.1;}
+.gauge .glbl{font-size:10px;color:var(--muted);}
+.gauge .gbar{height:3px;background:var(--b);border-radius:2px;margin-top:5px;}
+.gauge .gfill{height:100%;border-radius:2px;transition:width .5s;}
+/* Alerts */
+.iot-alert{background:#3d1212;border-radius:6px;padding:7px 10px;margin-bottom:6px;font-size:12px;color:#f85149;}
+/* Status buttons */
+.status-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.sbtn{padding:12px;border-radius:var(--r);border:1px solid var(--b);background:var(--s);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;}
+.sbtn:hover{border-color:var(--blue);}
+.sbtn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.sbtn.emergency{background:#3d1212;border-color:var(--red);color:#f85149;}
+.sbtn.emergency.active{background:var(--red);color:#fff;}
+/* Eco routes */
+.eco-route{background:#0d1117;border-radius:var(--r);padding:10px;margin-bottom:8px;border:1px solid var(--b);cursor:pointer;transition:border-color .15s;}
+.eco-route:hover{border-color:#56d364;}
+.eco-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.eco-label{font-size:13px;font-weight:600;color:#fff;}
+.eco-badge{font-size:10px;padding:2px 6px;border-radius:4px;background:#1a3a22;color:#56d364;font-weight:700;}
+.eco-stats{display:flex;gap:10px;font-size:11px;color:var(--muted);}
+.eco-path{font-size:10px;color:var(--muted);margin-top:4px;}
+/* Recommend */
+.rec-box{background:#1c2940;border-radius:var(--r);padding:10px;border-left:3px solid var(--blue);}
+.rec-text{font-size:12px;color:#58a6ff;}
+/* Bottom nav */
+.bnav{background:var(--s);border-top:1px solid var(--b);padding:10px;display:flex;gap:8px;position:sticky;bottom:0;}
+.bnavbtn{flex:1;padding:10px;border-radius:var(--r);border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.pod-btn{background:var(--green);color:#fff;}
+.pod-btn:hover{opacity:.85;}
+.refresh-btn{background:var(--b);color:var(--text);}
+.refresh-btn:hover{background:var(--blue);color:#fff;}
+/* Loading */
+.loading{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="av">🚛</div>
+  <div class="hinfo">
+    <div class="hname" id="d-name">Select Vehicle</div>
+    <div class="hvid" id="d-vid">Smart Supply Chain Driver App</div>
+  </div>
+  <div class="status-pill" id="d-status-pill" style="background:#1c2128;color:var(--muted)">—</div>
+</header>
+
+<div class="picker">
+  <label>Select your vehicle</label>
+  <select id="vid-select" onchange="loadVehicle(this.value)">
+    <option value="">— Choose vehicle ID —</option>
+  </select>
+</div>
+
+<div id="app-content">
+  <div class="loading">Select a vehicle to begin →</div>
+</div>
+
+<div class="bnav">
+  <button class="bnavbtn refresh-btn" onclick="refresh()">↻ Refresh</button>
+  <button class="bnavbtn pod-btn" id="pod-btn" style="display:none" onclick="submitPOD()">✓ Submit Delivery</button>
+</div>
+
+<script>
+const API=`${location.protocol}//${location.host}/api`;
+let currentVid='', data={}, navMap=null, navRouteLayer=null, refreshTimer=null;
+
+// ── Load vehicle list ─────────────────────────────────────────────────────────
+async function loadVehicleList(){
+  try{
+    const r=await fetch(`${API}/vehicles`);
+    const vs=await r.json();
+    const sel=document.getElementById('vid-select');
+    vs.forEach(v=>{
+      const opt=document.createElement('option');
+      opt.value=v.id; opt.textContent=`${v.id} — ${v.driver} (${v.route_name})`;
+      sel.appendChild(opt);
+    });
+    // Auto-select from URL path
+    const path=location.pathname.split('/').pop();
+    if(path.startsWith('VH-')){sel.value=path;loadVehicle(path);}
+  }catch(e){console.error(e);}
+}
+
+async function loadVehicle(vid){
+  if(!vid) return;
+  currentVid=vid;
+  await refresh();
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer=setInterval(refresh,5000);
+}
+
+async function refresh(){
+  if(!currentVid) return;
+  try{
+    const [asgn,iot,nav,eco]=await Promise.all([
+      fetch(`${API}/driver/${currentVid}/assignment`).then(r=>r.json()),
+      fetch(`${API}/driver/${currentVid}/iot`).then(r=>r.json()),
+      fetch(`${API}/driver/${currentVid}/navigation`).then(r=>r.json()),
+      fetch(`${API}/driver/${currentVid}/eco_alternatives`).then(r=>r.json()),
+    ]);
+    data={asgn,iot,nav,eco};
+    render();
+  }catch(e){console.error(e);}
+}
+
+// ── Render all ────────────────────────────────────────────────────────────────
+function render(){
+  const {asgn,iot,nav,eco}=data;
+  if(!asgn||asgn.error) return;
+
+  // Header
+  document.getElementById('d-name').textContent=asgn.driver||'Driver';
+  document.getElementById('d-vid').textContent=`${currentVid} · ${asgn.vehicle_type||''}`;
+  const smap={'On Time':'On-Time','Delayed':'Delayed','At Risk':'At-Risk','Delivered':'Delivered'};
+  const pill=document.getElementById('d-status-pill');
+  pill.textContent=asgn.status||'—';
+  pill.className=`status-pill ${smap[asgn.status]||'On-Time'}`;
+
+  document.getElementById('pod-btn').style.display=
+    asgn.status==='Delivered'?'none':'block';
+
+  const content=document.getElementById('app-content');
+  content.innerHTML=`
+    ${renderRerouteBanner(asgn)}
+    ${renderRiskTrend(asgn)}
+    ${renderTrip(asgn)}
+    ${renderNavMap(nav)}
+    ${renderIoT(iot)}
+    ${renderRecommendation(asgn)}
+    ${renderStatusButtons(asgn)}
+    ${renderEcoRoutes(eco)}
+  `;
+
+  initNavMap(nav,asgn);
+  bindStatusBtns(asgn);
+}
+
+// Phase 5: Reroute alert banner
+function renderRerouteBanner(a){
+  if(!a.auto_rerouted) return '';
+  return `<div style="background:#1a3a22;border:1px solid #238636;border-radius:10px;margin:10px;padding:12px;border-left:4px solid #56d364;">
+    <div style="font-size:13px;font-weight:700;color:#56d364;margin-bottom:4px;">🔄 Route Updated Automatically</div>
+    <div style="font-size:12px;color:#c9d1d9;margin-bottom:8px;">${a.reroute_reason||'Disruption risk detected — optimal route recalculated.'}</div>
+    <div style="font-size:11px;color:#8b949e;margin-bottom:8px;">New route: ${(a.recommended_route||[]).join(' → ')||'Recalculating…'}</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="acceptReroute()" style="flex:1;padding:8px;background:#238636;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">✓ Accept New Route</button>
+      <button onclick="dismissReroute()" style="flex:1;padding:8px;background:#30363d;border:none;border-radius:8px;color:#c9d1d9;font-size:12px;cursor:pointer;">✗ Keep Current</button>
+    </div>
+  </div>`;
+}
+
+// Phase 5: Risk trend indicator card
+function renderRiskTrend(a){
+  const risk=Math.max(a.disruption_probability||0, a.anomaly_score||0);
+  if(risk<0.25) return '';
+  const col=risk>0.70?'#f85149':risk>0.50?'#d29922':'#d4a017';
+  const bg=risk>0.70?'#3d1212':risk>0.50?'#3d2b00':'#2d2500';
+  const etaMin=a.eta_disruption_min;
+  return `<div style="background:${bg};border:1px solid ${col};border-radius:10px;margin:10px;padding:10px;border-left:4px solid ${col};">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:12px;font-weight:700;color:${col};">⚠ Disruption Risk: ${(risk*100).toFixed(0)}%</div>
+      ${etaMin?`<div style="font-size:11px;color:${col};">~${etaMin} min</div>`:''}
+    </div>
+    <div style="margin-top:5px;height:4px;background:#30363d;border-radius:2px;">
+      <div style="width:${(risk*100).toFixed(0)}%;height:100%;background:${col};border-radius:2px;transition:width .5s"></div>
+    </div>
+    <div style="font-size:10px;color:#8b949e;margin-top:5px;">${a.iot_alerts?.length?a.iot_alerts[0]:'Monitor conditions — alert threshold approaching'}</div>
+  </div>`;
+}
+
+function renderTrip(a){
+  const eta=a.eta?new Date(a.eta).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+  const prog=a.progress_pct||0;
+  const progCol=prog>80?'#56d364':prog>40?'#1f6feb':'#d29922';
+  return `<div class="card">
+    <div class="card-title">Current Assignment</div>
+    <div class="trip-row"><div class="trip-icon">📦</div><div class="trip-info"><div class="trip-label">Cargo</div><div class="trip-val">${a.cargo}</div></div></div>
+    <div class="trip-row"><div class="trip-icon">🚦</div><div class="trip-info"><div class="trip-label">Route</div><div class="trip-val">${a.origin} → ${a.destination}</div></div></div>
+    <div class="trip-row"><div class="trip-icon">🕐</div><div class="trip-info"><div class="trip-label">ETA · Delay</div><div class="trip-val">${eta} · ${a.delay_minutes||0} min behind</div></div></div>
+    <div class="trip-row"><div class="trip-icon">📋</div><div class="trip-info"><div class="trip-label">Shipment</div><div class="trip-val">${a.shipment_id}</div></div></div>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>Progress</span><span>${prog.toFixed(1)}%</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${prog}%;background:${progCol}"></div></div>
+    </div>
+  </div>`;
+}
+
+function renderNavMap(nav){
+  return `<div class="card">
+    <div class="card-title">Navigation · ${nav.route_label||'Optimal'} · ${nav.total_km||0}km · ${nav.eta_hours||0}h</div>
+    <div id="nav-map"></div>
+    <div style="margin-top:8px;">
+      ${(nav.turns||[]).slice(0,4).map((t,i)=>
+        `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--b);">
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${t.step}</div>
+          <div style="font-size:12px;color:var(--text)">${t.instruction}</div>
+        </div>`
+      ).join('')}
+    </div>
+    <div style="margin-top:8px;display:flex;gap:10px;font-size:11px;">
+      <span style="color:#56d364">🌱 Eco: ${nav.eco_score||'—'}</span>
+      <span style="color:#f85149">CO₂: ${nav.co2_kg||0}kg</span>
+    </div>
+  </div>`;
+}
+
+function renderIoT(iot){
+  const fuel=iot.fuel_level||0;
+  const fuelCol=fuel<15?'#f85149':fuel<30?'#d29922':'#56d364';
+  const eng=iot.engine_temp_c||0;
+  const engCol=eng>105?'#f85149':eng>95?'#d29922':'#56d364';
+  const tire=iot.tire_pressure||0;
+  const tireCol=tire<29?'#f85149':tire<31?'#d29922':'#56d364';
+  const brake=iot.brake_wear_pct||0;
+  const brakeCol=brake>85?'#f85149':brake>65?'#d29922':'#56d364';
+  const alerts=(iot.iot_alerts||[]).map(a=>`<div class="iot-alert">⚠ ${a}</div>`).join('');
+  return `<div class="card">
+    <div class="card-title">IoT Sensors</div>
+    ${alerts}
+    <div class="gauges">
+      <div class="gauge"><div class="gval" style="color:${fuelCol}">${fuel.toFixed(0)}%</div><div class="glbl">Fuel</div><div class="gbar"><div class="gfill" style="width:${fuel}%;background:${fuelCol}"></div></div></div>
+      <div class="gauge"><div class="gval" style="color:${engCol}">${eng.toFixed(0)}°C</div><div class="glbl">Engine</div><div class="gbar"><div class="gfill" style="width:${Math.min((eng-70)/40*100,100)}%;background:${engCol}"></div></div></div>
+      <div class="gauge"><div class="gval" style="color:${tireCol}">${tire.toFixed(1)} PSI</div><div class="glbl">Tire Pressure</div><div class="gbar"><div class="gfill" style="width:${Math.min((tire-25)/15*100,100)}%;background:${tireCol}"></div></div></div>
+      <div class="gauge"><div class="gval" style="color:${brakeCol}">${brake.toFixed(0)}%</div><div class="glbl">Brake Wear</div><div class="gbar"><div class="gfill" style="width:${brake}%;background:${brakeCol}"></div></div></div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)">Speed: ${iot.speed_kmh||0} km/h · Load: ${iot.load_kg||0}/${iot.capacity_kg||0} kg · CO₂: ${iot.co2_emitted||0}kg</div>
+  </div>`;
+}
+
+function renderRecommendation(a){
+  return `<div class="card">
+    <div class="card-title">AI Recommendation</div>
+    <div class="rec-box"><div class="rec-text">→ ${a.recommendation||'Continue on current route.'}</div></div>
+  </div>`;
+}
+
+function renderStatusButtons(a){
+  const statuses=['En Route','At Stop','Delivered','Emergency'];
+  return `<div class="card">
+    <div class="card-title">Update Status</div>
+    <div class="status-btns">
+      ${statuses.map(s=>`<button class="sbtn ${s==='Emergency'?'emergency':''} ${a.status===s?'active':''}" data-status="${s}">${s}</button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderEcoRoutes(eco){
+  if(!eco||!eco.length) return '';
+  return `<div class="card">
+    <div class="card-title">🌱 Eco-Route Alternatives</div>
+    ${eco.map(r=>`<div class="eco-route" onclick="acceptEco('${r.label}')">
+      <div class="eco-top">
+        <span class="eco-label">${r.label}</span>
+        <span class="eco-badge">Eco ${r.eco_score||0}</span>
+      </div>
+      <div class="eco-stats">
+        <span>${r.total_km||0}km</span>
+        <span>${r.travel_time_h||0}h</span>
+        <span style="color:#56d364">-${r.co2_saving_pct||0}% CO₂</span>
+        <span>${r.co2_kg||0}kg CO₂</span>
+      </div>
+      <div class="eco-path">${(r.path||[]).join(' → ')}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+function initNavMap(nav,asgn){
+  const el=document.getElementById('nav-map');
+  if(!el) return;
+  if(navMap){navMap.remove();navMap=null;}
+  navMap=L.map('nav-map',{zoomControl:false,attributionControl:false}).setView([20,80],5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:15}).addTo(navMap);
+  navRouteLayer=L.layerGroup().addTo(navMap);
+  const wps=(nav.waypoints||[]);
+  if(wps.length>1){
+    const line=L.polyline(wps.map(w=>[w.lat,w.lng]),{color:'#56d364',weight:3,opacity:.9}).addTo(navRouteLayer);
+    navMap.fitBounds(line.getBounds(),{padding:[15,15]});
+    wps.forEach((wp,i)=>{
+      const col=i===0?'#1f6feb':i===wps.length-1?'#56d364':'#d29922';
+      L.circleMarker([wp.lat,wp.lng],{radius:5,color:col,fillColor:col,fillOpacity:1,weight:1.5})
+        .addTo(navRouteLayer).bindTooltip(wp.city,{permanent:false});
+    });
+  }
+}
+
+// ── Interactions ──────────────────────────────────────────────────────────────
+function bindStatusBtns(a){
+  document.querySelectorAll('.sbtn[data-status]').forEach(btn=>{
+    btn.onclick=async()=>{
+      const status=btn.dataset.status;
+      await fetch(`${API}/driver/${currentVid}/status`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({status,notes:''})
+      });
+      await refresh();
+    };
+  });
+}
+
+async function acceptReroute(){
+  if(!currentVid) return;
+  await fetch(`${API}/driver/${currentVid}/status`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({status:'En Route',notes:'Accepted auto-reroute'})
+  });
+  // Visual feedback
+  const banners=document.querySelectorAll('[style*="border-left:4px solid #56d364"]');
+  banners.forEach(b=>{b.style.opacity='0.5';});
+  setTimeout(()=>refresh(),1000);
+}
+
+async function dismissReroute(){
+  if(!currentVid) return;
+  await fetch(`${API}/driver/${currentVid}/status`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({status:'En Route',notes:'Declined auto-reroute — keeping original route'})
+  });
+  refresh();
+}
+
+async function acceptEco(label){
+  alert(`✓ Eco-route "${label}" accepted! Navigation updated.`);
+}
+
+async function submitPOD(){
+  if(!currentVid||!confirm('Submit proof of delivery?')) return;
+  const r=await fetch(`${API}/driver/${currentVid}/pod`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({vehicle_id:currentVid,notes:'Delivered successfully'})
+  });
+  const d=await r.json();
+  if(d.success){alert('✓ Delivery confirmed!');await refresh();}
+}
+
+loadVehicleList();
+</script>
+</body>
+</html>
