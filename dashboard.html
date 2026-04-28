@@ -650,8 +650,10 @@ header{background:var(--s);border-bottom:1px solid var(--b);padding:8px 16px;dis
 </div>
 
 <script>
-const API = `http://${location.host}/api`;
-const WS  = `ws://${location.host}/ws`;
+const _proto = location.protocol === 'https:' ? 'https' : 'http';
+const _wsproto = location.protocol === 'https:' ? 'wss' : 'ws';
+const API = `${_proto}://${location.host}/api`;
+const WS  = `${_wsproto}://${location.host}/ws`;
 
 let vehicles={}, selVid=null, trendsData={}, cascadesData=[];
 let map, routeLayer, vMarkers={}, hubCircles={}, heatmapLayer=null;
@@ -663,6 +665,7 @@ let lastWeatherData={};
 let timelineChart=null;
 let wsConn, reconnTimer;
 let directionsService=null, routeRenderers=[], routeLabelOverlays=[], routeCache={}, optRouteRenderer=null;
+let _offlineMode=false, _offlineTimer=null, _wsFails=0, _offlineCycle=0;
 
 function toggleTheme() {
   document.documentElement.classList.toggle('light-mode');
@@ -1520,59 +1523,185 @@ function showTab(id,el){
 }
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
+function _handleMsg(msg){
+  if(msg.type==='init'){
+    lastRoutes=msg.routes||[];
+    drawRoutes(lastRoutes);
+    cacheHubs(msg.hubs||[]);
+    drawHubs(msg.hubs||[],msg.hub_risk_map||{});
+    lastHubRiskMap=msg.hub_risk_map||{};
+    lastSegHeatmap=msg.segment_heatmap||[];
+    if(msg.weather){lastWeatherData=msg.weather;drawWeatherOverlay(msg.weather);}
+  }
+  if(msg.vehicles){ msg.vehicles.forEach(v=>{vehicles[v.id]=v;}); }
+  if(msg.trends) trendsData=msg.trends;
+  const vlist=Object.values(vehicles);
+  renderList(vlist, msg.auto_rerouted||[]);
+  updateVehicleMarkers(vlist);
+  if(msg.hub_risk_map){lastHubRiskMap=msg.hub_risk_map;updateHeatmap(msg.hub_risk_map);}
+  if(msg.segment_heatmap){lastSegHeatmap=msg.segment_heatmap;if(showTraffic)drawTrafficOverlay(msg.segment_heatmap);}
+  if(msg.weather){lastWeatherData=msg.weather;drawWeatherOverlay(msg.weather);}
+  if(msg.alerts)    renderAlerts(msg.alerts);
+  if(msg.cascades)  renderCascades(msg.cascades);
+  if(msg.decisions) renderDecisions(msg.decisions);
+  if(msg.metrics)   updateMetrics(msg.metrics, msg.auto_rerouted);
+  if(msg.carbon)    renderCarbon(msg.carbon,vlist);
+  if(msg.kafka)     updateKafka(msg.kafka);
+  checkToasts(msg.auto_rerouted, msg.cascades, msg.metrics);
+  if(selVid&&vehicles[selVid]) selectV(selVid);
+  populateTimelineSelect(vlist);
+  renderSLA(vlist);
+  renderDrivers(vlist);
+  renderROI(vlist, msg.carbon, msg.metrics);
+  trackFeedback(vlist);
+  recordSnapshot();
+  if(localStorage.getItem('owm_api_key')&&Math.random()<0.05)fetchRealWeather();
+  document.getElementById('ws-ping').textContent=new Date().toLocaleTimeString();
+}
+
 function connect(){
-  wsConn=new WebSocket(WS);
+  if(_offlineMode) return;
+  try{ wsConn=new WebSocket(WS); }catch(e){ _wsFails++; if(_wsFails>=2) startOfflineSim(); return; }
   wsConn.onopen=()=>{
+    _wsFails=0;
     document.getElementById('cdot').classList.add('live');
     document.getElementById('clabel').textContent='Live';
     if(reconnTimer){clearInterval(reconnTimer);reconnTimer=null;}
   };
-  wsConn.onmessage=({data})=>{
-    const msg=JSON.parse(data);
-    if(msg.type==='init'){
-      lastRoutes=msg.routes||[];
-      drawRoutes(lastRoutes);
-      cacheHubs(msg.hubs||[]);
-      drawHubs(msg.hubs||[],msg.hub_risk_map||{});
-      lastHubRiskMap=msg.hub_risk_map||{};
-      lastSegHeatmap=msg.segment_heatmap||[];
-      if(msg.weather){lastWeatherData=msg.weather;drawWeatherOverlay(msg.weather);}
-    }
-    if(msg.vehicles){
-      msg.vehicles.forEach(v=>{vehicles[v.id]=v;});
-    }
-    if(msg.trends) trendsData=msg.trends;
-    const vlist=Object.values(vehicles);
-    renderList(vlist, msg.auto_rerouted||[]);
-    updateVehicleMarkers(vlist);
-    if(msg.hub_risk_map){lastHubRiskMap=msg.hub_risk_map;updateHeatmap(msg.hub_risk_map);}
-    if(msg.segment_heatmap){lastSegHeatmap=msg.segment_heatmap;if(showTraffic)drawTrafficOverlay(msg.segment_heatmap);}
-    if(msg.weather){lastWeatherData=msg.weather;drawWeatherOverlay(msg.weather);}
-    if(msg.alerts)    renderAlerts(msg.alerts);
-    if(msg.cascades)  renderCascades(msg.cascades);
-    if(msg.decisions) renderDecisions(msg.decisions);
-    if(msg.metrics)   updateMetrics(msg.metrics, msg.auto_rerouted);
-    if(msg.carbon)    renderCarbon(msg.carbon,vlist);
-    if(msg.kafka)     updateKafka(msg.kafka);
-    checkToasts(msg.auto_rerouted, msg.cascades, msg.metrics);
-    if(selVid&&vehicles[selVid]) selectV(selVid);
-    populateTimelineSelect(vlist);
-    // ── Wire new features ──
-    renderSLA(vlist);
-    renderDrivers(vlist);
-    renderROI(vlist, msg.carbon, msg.metrics);
-    trackFeedback(vlist);
-    recordSnapshot();
-    if(localStorage.getItem('owm_api_key')&&Math.random()<0.05)fetchRealWeather();
-    document.getElementById('ws-ping').textContent=new Date().toLocaleTimeString();
-  };
+  wsConn.onmessage=({data})=>{ _handleMsg(JSON.parse(data)); };
   wsConn.onclose=()=>{
     document.getElementById('cdot').classList.remove('live');
     document.getElementById('clabel').textContent='Reconnecting…';
     document.getElementById('ws-ping').textContent='Offline';
+    _wsFails++;
+    if(_wsFails>=2){ startOfflineSim(); return; }
     if(!reconnTimer) reconnTimer=setInterval(connect,4000);
   };
   wsConn.onerror=()=>wsConn.close();
+}
+
+// ── Offline client-side simulation (mirrors server.py) ────────────────────────
+const _HUBS={"Mumbai":{lat:19.076,lng:72.877},"Delhi":{lat:28.613,lng:77.209},"Bangalore":{lat:12.971,lng:77.594},"Chennai":{lat:13.082,lng:80.270},"Kolkata":{lat:22.572,lng:88.363},"Hyderabad":{lat:17.385,lng:78.486},"Pune":{lat:18.520,lng:73.856},"Ahmedabad":{lat:23.022,lng:72.571},"Jaipur":{lat:26.912,lng:75.787},"Lucknow":{lat:26.846,lng:80.946}};
+const _ROUTES=[["Mumbai","Delhi"],["Delhi","Kolkata"],["Bangalore","Chennai"],["Mumbai","Pune"],["Delhi","Jaipur"],["Hyderabad","Bangalore"],["Chennai","Kolkata"],["Ahmedabad","Mumbai"],["Lucknow","Delhi"],["Pune","Hyderabad"],["Jaipur","Lucknow"],["Kolkata","Chennai"]];
+const _NH_DATA={
+  "Mumbai|Delhi":{nh:"NH-48",km:1400,via:[[19.99,73.79],[21.17,72.83],[22.30,73.19],[23.02,72.57],[24.58,73.68],[26.45,74.64],[26.91,75.79],[27.56,76.63]]},
+  "Delhi|Kolkata":{nh:"NH-19 (GT Road)",km:1530,via:[[27.18,78.02],[26.85,80.91],[26.45,80.35],[25.43,81.85],[25.32,83.00],[24.79,84.99],[23.79,86.43]]},
+  "Bangalore|Chennai":{nh:"NH-44",km:350,via:[[12.92,77.78],[12.92,79.13],[13.00,79.95]]},
+  "Mumbai|Pune":{nh:"Mumbai–Pune Exp",km:150,via:[[18.96,73.13],[18.75,73.41]]},
+  "Delhi|Jaipur":{nh:"NH-48",km:280,via:[[28.46,77.03],[27.98,76.38],[27.56,76.63]]},
+  "Hyderabad|Bangalore":{nh:"NH-44",km:570,via:[[16.54,78.57],[15.83,78.04],[14.68,77.60],[13.63,77.59]]},
+  "Chennai|Kolkata":{nh:"NH-16",km:1660,via:[[14.44,79.97],[16.51,80.65],[17.69,83.22],[19.81,85.83],[20.30,85.82],[21.49,86.93]]},
+  "Ahmedabad|Mumbai":{nh:"NH-48",km:530,via:[[22.30,73.19],[21.17,72.83],[20.59,72.97],[19.99,73.79]]},
+  "Lucknow|Delhi":{nh:"NH-27",km:555,via:[[26.85,80.91],[27.18,78.02],[27.88,78.08]]},
+  "Pune|Hyderabad":{nh:"NH-65",km:560,via:[[17.66,75.91],[17.32,76.83]]},
+  "Jaipur|Lucknow":{nh:"NH-27",km:570,via:[[27.18,78.02],[26.85,80.91],[26.45,80.35]]},
+  "Kolkata|Chennai":{nh:"NH-16",km:1660,via:[[21.49,86.93],[20.30,85.82],[19.81,85.83],[17.69,83.22],[16.51,80.65],[14.44,79.97]]}
+};
+function _nhLookup(o,d){ return _NH_DATA[o+'|'+d]||_NH_DATA[d+'|'+o]||{nh:"State Hwy",km:500,via:[]}; }
+const _DRIVERS=["Raj Kumar","Amit Singh","Priya Sharma","Suresh Patel","Deepak Gupta","Anita Verma","Vikram Rao","Neha Joshi","Rahul Mehta","Sunita Das","Arjun Reddy","Kavita Nair","Manoj Tiwari","Pooja Iyer","Sanjay Mishra","Rohit Chauhan","Meena Kumari","Ajay Bhatt","Geeta Devi","Harish Jha"];
+const _CARGO=["Electronics","Perishable","Textiles","Machinery","Pharmaceuticals","Hazardous","Automotive Parts","FMCG","Chemicals","Raw Materials"];
+const _VTYPES=["Truck-20T","Truck-10T","Container-40ft","Tanker","Reefer","Mini-Truck"];
+const _WXCONDS=["Clear","Partly Cloudy","Cloudy","Light Rain","Rain","Heavy Rain","Fog","Haze","Overcast","Storm","Windy"];
+function _rand(a,b){return a+Math.random()*(b-a);}
+function _pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+function _initOfflineVehicles(){
+  for(let i=0;i<15;i++){
+    const vid=`VH-${String(i+1).padStart(3,'0')}`;
+    const [origin,dest]=_ROUTES[i%_ROUTES.length];
+    const oh=_HUBS[origin],dh=_HUBS[dest];
+    const prog=_rand(0.05,0.85);
+    vehicles[vid]={id:vid,shipment_id:`SHP-${String(i+1).padStart(3,'0')}`,driver:_DRIVERS[i%_DRIVERS.length],cargo:_pick(_CARGO),vehicle_type:_pick(_VTYPES),origin,destination:dest,route_name:`${origin} → ${dest}`,lat:oh.lat+(dh.lat-oh.lat)*prog,lng:oh.lng+(dh.lng-oh.lng)*prog,progress:prog,speed_kmh:_rand(30,90),fuel_level:_rand(0.15,0.95),engine_temp_c:_rand(75,105),brake_wear:_rand(0.1,0.85),delay_minutes:_pick([0,0,0,10,25,45,70,90]),distance_km:_rand(400,1800),status:"On Time",disruption_probability:0,anomaly_score:0,traffic_density:_rand(0.1,0.8),weather_severity:_rand(0,0.6),eco_score:Math.floor(_rand(30,90)),carbon_kg_emitted:_rand(5,50),co2_per_km:_rand(0.1,0.6),iot_alerts:[],auto_rerouted:false,reroute_reason:"",driving_hours_today:+_rand(0.5,7.5).toFixed(1),driving_hours_week:+_rand(5,55).toFixed(1)};
+  }
+  // Pre-load drama vehicles
+  vehicles["VH-001"]=Object.assign(vehicles["VH-001"],{cargo:"Hazardous",delay_minutes:120,status:"At Risk",disruption_probability:0.92,anomaly_score:0.85,traffic_density:0.95,weather_severity:0.80,engine_temp_c:115,fuel_level:0.08,brake_wear:0.91,speed_kmh:15,iot_alerts:["Engine overheating","Critical fuel level","Brake wear critical"],driving_hours_today:9.5,driving_hours_week:63});
+  vehicles["VH-002"]=Object.assign(vehicles["VH-002"],{cargo:"Perishable",delay_minutes:95,status:"Delayed",disruption_probability:0.78,anomaly_score:0.55,traffic_density:0.85,weather_severity:0.90,speed_kmh:22,fuel_level:0.18,engine_temp_c:102,driving_hours_today:7.8,driving_hours_week:58});
+  vehicles["VH-003"]=Object.assign(vehicles["VH-003"],{cargo:"Pharmaceuticals",delay_minutes:75,status:"At Risk",disruption_probability:0.71,anomaly_score:0.68,traffic_density:0.70,weather_severity:0.65,brake_wear:0.88,engine_temp_c:109,fuel_level:0.12,auto_rerouted:true,reroute_reason:"Storm + high convergence at hub",iot_alerts:["Engine overheating","Brake wear critical"],driving_hours_today:8.2,driving_hours_week:61});
+}
+
+function _tickOffline(){
+  const alertsList=[],decisionsList=[];
+  const autoRerouted=[];
+  for(const vid in vehicles){
+    const v=vehicles[vid];
+    v.progress=Math.min(0.99,v.progress+_rand(0.005,0.02));
+    const oh=_HUBS[v.origin]||_HUBS["Mumbai"],dh=_HUBS[v.destination]||_HUBS["Delhi"];
+    v.lat=oh.lat+(dh.lat-oh.lat)*v.progress;
+    v.lng=oh.lng+(dh.lng-oh.lng)*v.progress;
+    v.speed_kmh=Math.max(10,v.speed_kmh+_rand(-5,5));
+    v.fuel_level=Math.max(0.02,v.fuel_level-_rand(0,0.01));
+    v.engine_temp_c=Math.max(70,Math.min(120,v.engine_temp_c+_rand(-2,2)));
+    v.brake_wear=Math.min(0.98,v.brake_wear+_rand(0,0.005));
+    v.traffic_density=Math.max(0,Math.min(1,v.traffic_density+_rand(-0.05,0.05)));
+    v.weather_severity=Math.max(0,Math.min(1,v.weather_severity+_rand(-0.03,0.03)));
+    v.carbon_kg_emitted+=_rand(0.05,0.3);
+    v.delay_minutes=Math.max(0,v.delay_minutes+_pick([-2,-1,0,0,1,2,3]));
+    if(v.status!=="Delivered"){v.driving_hours_today=+Math.min(12,v.driving_hours_today+_rand(0.02,0.08)).toFixed(2);v.driving_hours_week=+Math.min(80,v.driving_hours_week+_rand(0.02,0.08)).toFixed(2);}
+    const dp=Math.min(1,Math.max(0,0.15+v.traffic_density*0.3+v.weather_severity*0.25+(v.delay_minutes/200)+_rand(-0.1,0.1)));
+    const anm=Math.min(1,Math.max(0,(v.engine_temp_c-80)/60+v.brake_wear*0.3+(1-v.fuel_level)*0.2+_rand(-0.1,0.05)));
+    v.disruption_probability=+dp.toFixed(4);v.anomaly_score=+anm.toFixed(4);
+    if(v.progress>=0.98)v.status="Delivered";
+    else if(dp>=0.7||anm>=0.7)v.status="At Risk";
+    else if(v.delay_minutes>30)v.status="Delayed";
+    else v.status="On Time";
+    v.iot_alerts=[];
+    if(v.fuel_level<0.12)v.iot_alerts.push("Critical fuel level");
+    if(v.engine_temp_c>108)v.iot_alerts.push("Engine overheating");
+    if(v.brake_wear>0.85)v.iot_alerts.push("Brake wear critical");
+    if(dp>=0.7&&v.status!=="Delivered"&&!v.auto_rerouted&&Math.random()<0.3){v.auto_rerouted=true;v.reroute_reason="High disruption risk";autoRerouted.push(vid);}
+    if(dp>=0.6){const sev=dp>=0.85?"CRITICAL":"HIGH";alertsList.push({id:Math.random().toString(36).substr(2,8),vehicle_id:vid,type:"DISRUPTION",severity:sev,probability:+(dp*100).toFixed(1),message:`Disruption probability ${(dp*100).toFixed(0)}%`,recommendation:"Consider rerouting via alternate corridor",created_at:new Date().toISOString()});}
+    if(dp>=0.5||anm>=0.5){decisionsList.push({vehicle_id:vid,priority:dp>=0.8?"CRITICAL":dp>=0.6?"HIGH":"MEDIUM",primary_action:dp>=0.8?"EMERGENCY_REROUTE":"MONITOR_CLOSELY",reasons:[`Risk ${(dp*100).toFixed(0)}%`,`Traffic ${(v.traffic_density*100).toFixed(0)}%`],auto_execute:dp>=0.85,execution_status:dp>=0.85?"AUTO_EXECUTED":"ADVISORY",eco_action:Math.random()>0.5?{co2_saving_pct:Math.floor(_rand(5,25))}:null,confidence:+dp.toFixed(3)});}
+  }
+  // Cascades
+  const cascades=[];
+  const hubVeh={};
+  for(const v of Object.values(vehicles)){if(v.status==="Delivered")continue;[v.origin,v.destination].forEach(h=>{(hubVeh[h]=hubVeh[h]||[]).push(v.id);});}
+  for(const[hub,vids]of Object.entries(hubVeh)){if(vids.length>=3){const avgR=vids.reduce((s,id)=>s+vehicles[id].disruption_probability,0)/vids.length;if(avgR>=0.45)cascades.push({id:`CAS-${hub.substr(0,3)}`,epicenter_hub:hub,cascade_score:+Math.min(1,avgR*1.2).toFixed(3),convergence_count:vids.length,severity:avgR>0.7?"CRITICAL":"HIGH",trigger:`${vids.length} vehicles converging with avg risk ${(avgR*100).toFixed(0)}%`,affected_vehicles:vids.slice(0,5),downstream_hubs:Object.keys(_HUBS).slice(0,2),time_to_cascade_min:Math.floor(_rand(10,45)),projected_total_delay_min:Math.floor(_rand(60,300)),recommended_diversions:{},created_at:new Date().toISOString()});}}
+  // Weather
+  const wx={};
+  for(const hub in _HUBS){const cond=_pick(_WXCONDS);const sevMap={Clear:0.05,"Partly Cloudy":0.1,Cloudy:0.15,"Light Rain":0.25,Rain:0.4,"Heavy Rain":0.65,Fog:0.45,Haze:0.2,Overcast:0.15,Storm:0.85,Windy:0.3};wx[hub]={condition:cond,severity:(sevMap[cond]||0.2)+_rand(-0.05,0.05),temperature_c:Math.floor(_rand(22,42)),humidity:Math.floor(_rand(30,90)),wind_speed:Math.floor(_rand(5,60))};}
+  // Hub risk
+  const hrm={};for(const hub in _HUBS){const conv=Object.values(vehicles).filter(v=>v.destination===hub&&v.status!=="Delivered").length;hrm[hub]={risk:+Math.min(1,conv*0.15+_rand(0,0.2)).toFixed(3),converging:conv};}
+  // Segments
+  const segs=_ROUTES.map(([o,d])=>{const dens=_rand(0.1,0.9);return{from:o,to:d,density:+dens.toFixed(2),congestion:dens>0.7?"Heavy":dens>0.4?"Moderate":"Light"};});
+  // Carbon
+  const vlist=Object.values(vehicles);
+  const totalCo2=vlist.reduce((s,v)=>s+v.carbon_kg_emitted,0);
+  const baseline=totalCo2*1.2,saved=baseline-totalCo2;
+  const carbon={total_co2_kg:+totalCo2.toFixed(2),co2_saved_vs_baseline:+Math.max(0,saved).toFixed(2),trees_equivalent:Math.max(0,Math.floor(saved/21))};
+  // Trends
+  const trnds={};
+  vlist.slice(0,5).forEach(v=>{const dp=v.disruption_probability;trnds[v.id]={current_risk:dp,trend_direction:_pick(["ACCELERATING","DECLINING","STABLE"]),risk_velocity_per_min:_rand(-0.02,0.03),projected_risk_5min:Math.min(1,dp+_rand(-0.05,0.1)),projected_risk_10min:Math.min(1,dp+_rand(-0.05,0.15)),projected_risk_15min:Math.min(1,dp+_rand(-0.05,0.2)),history:Array.from({length:8},()=>Math.max(0,Math.min(1,dp+_rand(-0.15,0.15)))),eta_to_threshold_min:dp<0.6?_pick([null,12,25,40]):null};});
+  const onTime=vlist.filter(v=>v.status==="On Time").length;
+  const delayed=vlist.filter(v=>v.status==="Delayed").length;
+  const atRisk=vlist.filter(v=>v.status==="At Risk").length;
+  const metrics={total_vehicles:vlist.length,on_time:onTime,delayed,at_risk:atRisk,auto_rerouted_this_cycle:autoRerouted.length};
+  const kafka={topics:{gps_events:{queue_depth:Math.floor(_rand(0,50))},traffic_events:{queue_depth:Math.floor(_rand(0,30))},weather_events:{queue_depth:Math.floor(_rand(0,10))},processed_features:{queue_depth:Math.floor(_rand(0,20))},alert_events:{queue_depth:Math.floor(_rand(0,15))}}};
+  return{alertsList,decisionsList,cascades,autoRerouted,wx,hrm,segs,carbon,trnds,metrics,kafka};
+}
+
+function startOfflineSim(){
+  if(_offlineMode) return;
+  _offlineMode=true;
+  if(reconnTimer){clearInterval(reconnTimer);reconnTimer=null;}
+  console.log('[OfflineSim] No backend detected — starting client-side simulation');
+  document.getElementById('cdot').classList.add('live');
+  document.getElementById('clabel').textContent='Sim Mode';
+  _initOfflineVehicles();
+  // Build routes for init
+  const routesEdges=_ROUTES.map(([o,d])=>{const info=_nhLookup(o,d);const pts=[[_HUBS[o].lat,_HUBS[o].lng],...(info.via||[]),[_HUBS[d].lat,_HUBS[d].lng]];return{from_lat:_HUBS[o].lat,from_lng:_HUBS[o].lng,to_lat:_HUBS[d].lat,to_lng:_HUBS[d].lng,quality:_rand(0.7,1),from_city:o,to_city:d,nh:info.nh,distance_km:info.km,points:pts};});
+  const hubs=Object.entries(_HUBS).map(([k,v])=>({name:k,...v}));
+  // First tick
+  const t=_tickOffline();
+  _handleMsg({type:'init',vehicles:Object.values(vehicles),alerts:t.alertsList,decisions:t.decisionsList,metrics:t.metrics,weather:t.wx,routes:routesEdges,hubs,hub_risk_map:t.hrm,segment_heatmap:t.segs,cascades:t.cascades,carbon:t.carbon,ts:new Date().toISOString()});
+  // Loop
+  _offlineTimer=setInterval(()=>{
+    _offlineCycle++;
+    const u=_tickOffline();
+    const payload={type:'update',vehicles:Object.values(vehicles),alerts:u.alertsList,decisions:u.decisionsList,metrics:u.metrics,cascades:u.cascades,hub_risk_map:u.hrm,segment_heatmap:u.segs,carbon:u.carbon,trends:u.trnds,auto_rerouted:u.autoRerouted,kafka:u.kafka,ts:new Date().toISOString()};
+    if(_offlineCycle%5===0) payload.weather=u.wx;
+    _handleMsg(payload);
+  },3000);
 }
 
 // ── F1: SLA Breach Predictor ──────────────────────────────────────────────────
